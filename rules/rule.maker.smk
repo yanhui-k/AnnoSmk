@@ -4,8 +4,6 @@ import random
 import glob
 import os
 
-
-
 rule all:
     input:
         "R1/total_master_datastore_index.log",
