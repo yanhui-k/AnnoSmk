@@ -4,13 +4,15 @@ import random
 import glob
 import os
 
-# rule all:
-#     input:
-#         "R1/total_master_datastore_index.log",
-#         "R1/ref.fa",
-#         "R1/genbank_gene_seqs.fasta",
-#         "R1/augustus.gb.test",
-#         "R1_autoAug/autoAugPred_hints/shells"
+
+
+rule all:
+    input:
+        "R1/total_master_datastore_index.log",
+        "R1/ref.fa",
+        "R1/genbank_gene_seqs.fasta",
+        "R1/augustus.gb.test",
+        directory("R1_autoAug/autoAugPred_hints/shells")
 
 rule make_fasta:
     output:
@@ -273,7 +275,7 @@ rule autoAugA:
         '''
         autoAug.pl --species=altra.genome.contig.fa.masked.fa_R1_direct \
         --genome={input.fasta} --trainingset={input.gb} --cdna={input.cdna} --noutr
-        cp autoAug R1_autoAug
+        cp -r autoAug R1_autoAug
         '''
 
 #如果有autoAug文件夹或者在/nfs/yanhui/.conda/envs/repeat/config/species下
@@ -284,13 +286,13 @@ rule autoAugB:
         fasta="R1/genbank_gene_seqs.fasta",
         gff="R1_autoAug/hints/hints.E.gff"
     output:
-        "R1_autoAug/autoAugPred_hints/shells"
+        directory("R1_autoAug/autoAugPred_hints/shells")
     shell:
         '''
         autoAug.pl --species=altra.genome.contig.fa.masked.fa_R1_direct \
         --genome={input.fasta} --useexisting --hints={input.gff} \
         -v -v -v  --index=1
-        cp autoAug/autoAugPred_hints/shells {output}
+        mv -f autoAug/autoAugPred_hints R1_autoAug
         '''
 
 # rule clean:
