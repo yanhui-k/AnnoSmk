@@ -13,7 +13,4 @@ conda activate annotation
 mamba install -c conda-forge -c bioconda snakemake
 
 
-git clone https://github.com/yanhui-k/annotation_smk.git
-
-
-snakemake --cluster "bsub -o log/output1 -e log/error1 -q Q104C512G_X4 -m yi02" -j 10 -p
+snakemake --cluster "bsub -o log/output1 -e log/error1 -q Q104C512G_X4 -m yi02" -j 10 -p --use-conda
