@@ -295,13 +295,15 @@ rule busco:
     input:
         rules.gff3_merge.output.all_fasta
     output:
-        touch("result/{PREFIX}/R{round}/total.all.maker.proteins.fasta.busco.embryophyta")
+        "result/{PREFIX}/R{round}/total.all.maker.proteins.fasta.busco.embryophyta"
     params:
         dir_busco="total.all.maker.proteins.fasta.busco.embryophyta"
+    conda:
+        "env/busco.yaml"
     shell:
         """
         cd result/{wildcards.PREFIX}/R{wildcards.round}/
-        run_busco -f -c 64 -m prot -i ../{input} -o {params.dir_busco} -l embryophyta_odb10
+        run_busco -f -c 64 -m prot -i ../../../{input} -o {params.dir_busco} -l embryophyta_odb10
         """
 
 
