@@ -1,0 +1,7 @@
+PREFIX: ALTRA
+REF: data_test/altra.genome.fa.masked.fa
+FLNCESTGFF: data_test/flnc.fasta.rawgff.gff
+ESTGFF: data_test/total_est.gff
+CDNAFASTA: data_test/flnc.fasta
+PEPGFF: data_test/genblast.gff
+REPEATGFF: data_test/repeat.gff
