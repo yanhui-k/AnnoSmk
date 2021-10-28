@@ -1,7 +1,0 @@
-PREFIX:ALTRA
-REF:altra.genome.fa.masked.fa
-FLNCESTGFF:flnc.fasta.rawgff.gff
-ESTGFF:total_est.gff
-CDNAFASTA:flnc.fasta
-PEPGFF:genblast.gff
-REPEATGFF:repeat.gff
