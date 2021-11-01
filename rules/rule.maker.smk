@@ -107,31 +107,48 @@ rule pre_pre_rmgff:
     shell:
         "cp {input} {output}"
 
+hmm_dict = {"1":"result/{PREFIX}/R0/{PREFIX}.genome.contig.fa.masked.fa_R0.hmm",
+            "2":"result/{PREFIX}/R1/{PREFIX}.genome.contig.fa.masked.fa_R1.hmm",
+            "3":"result/{PREFIX}/R2/{PREFIX}.genome.contig.fa.masked.fa_R2.hmm"}
+
+def get_hmm(wildcards):
+    round = wildcards.round
+    hmm_file = hmm_dict[round]
+    return hmm_file
+
+augustus_species_dict = {"1":"","2":"{PREFIX}.genome.contig.fa.masked.fa_R1_direct",
+                         "3":"{PREFIX}.genome.contig.fa.masked.fa_R2_direct"}
+
+def get_augustus_species(wildcards):
+    round = wildcards.round
+    augustus_species = augustus_species_dict[round]
+    return augustus_species
+
 rule pre_opts:
     input:
-        snap_hmm = "result/{PREFIX}/R{pren}/{PREFIX}.genome.contig.fa.masked.fa_R{pren}.hmm",
+        snap_hmm = get_hmm,
         estgff = "total_est.gff",
         pepgff = "total_pep.gff",
         rmgff = "rm.gff"
     params:
         round = "{round}",
-        augustus_species = "{PREFIX}.genome.contig.fa.masked.fa_R{pren}_direct"
+        augustus_species = get_augustus_species
     output:
-        opts_file = "result/{PREFIX}/R{round}/maker_opts{round}_{pren}.ctl"
+        opts_file = "result/{PREFIX}/R{round}/maker_opts{round}.ctl"
     run:
-        prepare_opts(estgff="data_test/genblast.gff", pepgff=input.pepgff,
-                    rmgff="data_test/genblast.gff", round=params.round,
+        prepare_opts(estgff=input.estgff, pepgff=input.pepgff,
+                    rmgff=input.rmgff, round=params.round,
                     snap_hmm=input.snap_hmm,
                     augustus_species=params.augustus_species,
                     output_file=output.opts_file)
 
-def get_opts(wildcards):
-    opts_file = checkpoints.pre_exe.get(**wildcards).output[0]
-    round = glob_wildcards(f"result/{wildcards.PREFIX}/R{{round}}/maker_exe.ctl").round
-    for num in round:
-        pren = int(num) -1
-    opts_file = expand(rules.pre_opts.output,**wildcards,pren=pren)
-    return opts_file
+# def get_opts(wildcards):
+#     opts_file = checkpoints.pre_exe.get(**wildcards).output[0]
+#     round = glob_wildcards(f"result/{wildcards.PREFIX}/R{{round}}/maker_exe.ctl").round
+#     # for num in round:
+#     #     pren = int(num) - 1
+#     opts_file = expand(rules.pre_opts.output,**wildcards,pren=lambda w: w-1)
+#     return opts_file
 
 checkpoint pre_exe:
     output:
@@ -158,7 +175,7 @@ checkpoint pre_exe:
 rule run_maker:
     input:
         g="result/{PREFIX}/R{round}/{lane_number}.fa",
-        opts=get_opts,
+        opts="result/{PREFIX}/R{round}/maker_opts{round}.ctl",
         bopts="result/{PREFIX}/R{round}/maker_bopts.ctl",
         exe="result/{PREFIX}/R{round}/maker_exe.ctl"
     output:
