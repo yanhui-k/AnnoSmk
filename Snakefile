@@ -4,11 +4,11 @@ import os
 
 PREFIX=config["PREFIX"]
 REF=config["REF"]
-FLNCESTGFF=config["FLNCESTGFF"]
+FLNCESTGFF=os.path.abspath(config["FLNCESTGFF"])
 ESTGFF=config["ESTGFF"]
 CDNAFASTA=os.path.abspath(config["CDNAFASTA"])
-PEPGFF=config["PEPGFF"]
-REPEATGFF=config["REPEATGFF"]
+PEPGFF=os.path.abspath(config["PEPGFF"])
+REPEATGFF=os.path.abspath(config["REPEATGFF"])
 
 include:"rules/rule.maker.smk"
 

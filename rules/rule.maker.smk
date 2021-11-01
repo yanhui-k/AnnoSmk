@@ -3,6 +3,7 @@ import random
 
 import glob
 import os
+from configparser import ConfigParser
 
 rule make_fasta:
     output:
@@ -26,40 +27,138 @@ rule mv:
     shell:
         "cp {input} {output}"
 
+def prepare_opts(estgff=None, pepgff=None, rmgff=None, round=None,
+                 snap_hmm="", augustus_species="", output_file=None):
+    # find the abspath of estgff,pepgff,rmgff
+    # if round=1,snap_hmm="",if round=2,R1/R1.hmm,if round=3,R2/R2.hmm
+    # if round=1,augustus_species="",if round=2,R1,if round=3,R2
+    # add the information to the opts.ctl
+    if snap_hmm != "" and augustus_species != "" and round != "1":
+        snap_hmm_dir = os.path.abspath(snap_hmm)
+        augustus_species = augustus_species
+        est2genome = "0"
+        protein2genome = "0"
+        alt_splice = "1"
+        if round == "2":
+            trna = "1"
+        else:
+            trna = "0"
+    elif round == "1":
+        snap_hmm_dir = ""
+        augustus_species = ""
+        est2genome = "1"
+        protein2genome = "1"
+        alt_splice = "0"
+        trna = "0"
+    else:
+        exit(1)
+    config = ConfigParser()
+    config.read("config/maker_opts.ctl")
+    estgff_dir = os.path.abspath(estgff)
+    pepgff_dir = os.path.abspath(pepgff)
+    rmgff_dir = os.path.abspath(rmgff)
+    config.set("maker_opts", "est_gff", estgff_dir)
+    config.set("maker_opts", "protein_gff", pepgff_dir)
+    config.set("maker_opts", "rm_gff", rmgff_dir)
+    config.set("maker_opts", "snaphmm", snap_hmm_dir)
+    config.set("maker_opts", "augustus_species", augustus_species)
+    config.set("maker_opts", "est2genome", est2genome)
+    config.set("maker_opts", "protein2genome", protein2genome)
+    config.set("maker_opts", "alt_splice", alt_splice)
+    config.set("maker_opts", "trna", trna)
+    config.set("maker_opts", "model_org", "")
+
+    output_dir = os.path.abspath(output_file)
+    with open("opts.yaml", "w", encoding="utf-8") as file:
+        config.write(file)
+    lines = open("opts.yaml").readlines()
+    file = open(output_dir, "w")
+    for s in lines:
+        s = s.replace(" =", "=")
+        s = s.replace("aed_threshold", "AED_threshold")
+        file.write(s.replace("tmp=", "TMP="))
+    file.close()
+
+rule pre_pre_opts:
+    output:
+        expand("result/{PREFIX}/R{round}/{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm",round=0,PREFIX=PREFIX)
+
+rule pre_pre_estgff:
+    input:
+        expand("{FLNCESTGFF}", FLNCESTGFF=FLNCESTGFF)
+    output:
+        "total_est.gff"
+    shell:
+        "cp {input} {output}"
+
+rule pre_pre_pepgff:
+    input:
+        expand("{PEPGFF}", PEPGFF=PEPGFF)
+    output:
+        "total_pep.gff"
+    shell:
+        "cp {input} {output}"
+
+rule pre_pre_rmgff:
+    input:
+        expand("{REPEATGFF}", REPEATGFF=REPEATGFF)
+    output:
+        "rm.gff"
+    shell:
+        "cp {input} {output}"
+
 rule pre_opts:
     input:
-        "config/opt.txt"
+        snap_hmm = "result/{PREFIX}/R{pren}/{PREFIX}.genome.contig.fa.masked.fa_R{pren}.hmm",
+        estgff = "total_est.gff",
+        pepgff = "total_pep.gff",
+        rmgff = "rm.gff"
+    params:
+        round = "{round}",
+        augustus_species = "{PREFIX}.genome.contig.fa.masked.fa_R{pren}_direct"
     output:
-        "result/{PREFIX}/R{round}/maker_opts.ctl"
-    shell:
-        '''
-        cat {input} > {output}
-        '''
+        opts_file = "result/{PREFIX}/R{round}/maker_opts{round}_{pren}.ctl"
+    run:
+        prepare_opts(estgff="data_test/genblast.gff", pepgff=input.pepgff,
+                    rmgff="data_test/genblast.gff", round=params.round,
+                    snap_hmm=input.snap_hmm,
+                    augustus_species=params.augustus_species,
+                    output_file=output.opts_file)
 
-rule pre_exe:
-    input:
-        "config/exe.txt"
-    output:
-        "result/{PREFIX}/R{round}/maker_exe.ctl"
-    shell:
-        '''
-        cat {input} > {output}
-        '''
+def get_opts(wildcards):
+    opts_file = checkpoints.pre_exe.get(**wildcards).output[0]
+    round = glob_wildcards(f"result/{wildcards.PREFIX}/R{{round}}/maker_exe.ctl").round
+    for num in round:
+        pren = int(num) -1
+    opts_file = expand(rules.pre_opts.output,**wildcards,pren=pren)
+    return opts_file
 
-rule pre_bopts:
-    input:
-        "config/bopts.txt"
+checkpoint pre_exe:
     output:
+        "result/{PREFIX}/R{round}/maker_exe.ctl",
         "result/{PREFIX}/R{round}/maker_bopts.ctl"
     shell:
         '''
-        cat {input} > {output}
+        maker -CTL
+        mv maker_exe.ctl result/{wildcards.PREFIX}/R{wildcards.round}/
+        mv maker_bopts.ctl result/{wildcards.PREFIX}/R{wildcards.round}/
         '''
+
+# rule pre_bopts/exe:
+# 现在用上面的方法
+#     input:
+#         "config/bopts.txt"
+#     output:
+#         "result/{PREFIX}/R{round}/maker_bopts.ctl"
+#     shell:
+#         '''
+#         cat {input} > {output}
+#         '''
 
 rule run_maker:
     input:
         g="result/{PREFIX}/R{round}/{lane_number}.fa",
-        opts="result/{PREFIX}/R{round}/maker_opts.ctl",
+        opts=get_opts,
         bopts="result/{PREFIX}/R{round}/maker_bopts.ctl",
         exe="result/{PREFIX}/R{round}/maker_exe.ctl"
     output:
@@ -194,7 +293,7 @@ rule fathom4:
         '''
         fathom -export 1000 -plus {input.uann} {input.udna}
         mv export.ann result/{wildcards.PREFIX}/R{wildcards.round}/.
-        mv export.ann result/{wildcards.PREFIX}/R{wildcards.round}/.
+        mv export.dna result/{wildcards.PREFIX}/R{wildcards.round}/.
         '''
 
 rule forge:
@@ -270,7 +369,7 @@ rule autoAugA:
         '''
         autoAug.pl --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct \
         --genome={input.fasta} --trainingset={input.gb} --cdna={input.cdna} --noutr
-        cp -r autoAug result/{wildcards.PREFIX}/R{wildcards.round}/autoAug
+        cp -r autoAug result/{wildcards.PREFIX}/R{wildcards.round}/.
         '''
 
 #如果有autoAug文件夹或者在/nfs/yanhui/.conda/envs/repeat/config/species下
@@ -287,7 +386,7 @@ rule autoAugB:
         autoAug.pl --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct \
         --genome={input.fasta} --useexisting --hints={input.gff} \
         -v -v -v  --index=1
-        mv -f autoAug/autoAugPred_hints R1_autoAug
+        mv -f autoAug/autoAugPred_hints result/{wildcards.PREFIX}/R{wildcards.round}/autoAug/.
         rm -r autoAug
         '''
 
@@ -299,11 +398,11 @@ rule busco:
     params:
         dir_busco="total.all.maker.proteins.fasta.busco.embryophyta"
     conda:
-        "env/busco.yaml"
+        "../env/busco.yaml"
     shell:
         """
         cd result/{wildcards.PREFIX}/R{wildcards.round}/
-        run_busco -f -c 64 -m prot -i ../../../{input} -o {params.dir_busco} -l embryophyta_odb10
+        busco -f -c 64 -m prot -i ../../../{input} -o {params.dir_busco} -l embryophyta_odb10
         """
 
 
