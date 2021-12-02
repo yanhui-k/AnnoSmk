@@ -5,6 +5,11 @@ import glob
 import os
 from configparser import ConfigParser
 
+localrules:
+    all,
+    pre_exe,
+    merge_log
+
 rule make_fasta:
     output:
         fasta = expand("{REF}",REF=REF)
@@ -79,13 +84,19 @@ def prepare_opts(estgff=None, pepgff=None, rmgff=None, round=None,
         file.write(s.replace("tmp=", "TMP="))
     file.close()
 
-rule pre_pre_opts:
+rule pre_pre_hmm:
     output:
-        expand("result/{PREFIX}/R{round}/{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm",round=0,PREFIX=PREFIX)
+        hmm = expand("result/{PREFIX}/pre_R{round}/{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm",round=0,PREFIX=PREFIX),
+        aug_dir = expand("result/{PREFIX}/pre_R{round}/autoAug/autoAugPred_hints/shells",round=0,PREFIX=PREFIX)
+    shell:
+        '''
+        touch {output.hmm}
+        touch {output.aug_dir}
+        '''
 
 rule pre_pre_estgff:
     input:
-        expand("{FLNCESTGFF}", FLNCESTGFF=FLNCESTGFF)
+        expand("{ESTGFF}", ESTGFF=ESTGFF)
     output:
         "total_est.gff"
     shell:
@@ -107,29 +118,39 @@ rule pre_pre_rmgff:
     shell:
         "cp {input} {output}"
 
-hmm_dict = {"1":"result/{PREFIX}/R0/{PREFIX}.genome.contig.fa.masked.fa_R0.hmm",
-            "2":"result/{PREFIX}/R1/{PREFIX}.genome.contig.fa.masked.fa_R1.hmm",
-            "3":"result/{PREFIX}/R2/{PREFIX}.genome.contig.fa.masked.fa_R2.hmm"}
+hmm_dict = {"1":f"result/{PREFIX}/pre_R0/{PREFIX}.genome.contig.fa.masked.fa_R0.hmm",
+            "2":f"result/{PREFIX}/R1/{PREFIX}.genome.contig.fa.masked.fa_R1.hmm",
+            "3":f"result/{PREFIX}/R2/{PREFIX}.genome.contig.fa.masked.fa_R2.hmm"}
 
 def get_hmm(wildcards):
     round = wildcards.round
     hmm_file = hmm_dict[round]
     return hmm_file
 
-augustus_species_dict = {"1":"","2":"{PREFIX}.genome.contig.fa.masked.fa_R1_direct",
-                         "3":"{PREFIX}.genome.contig.fa.masked.fa_R2_direct"}
+augustus_species_dict = {"1":"","2":f"{PREFIX}.genome.contig.fa.masked.fa_R1_direct",
+                         "3":f"{PREFIX}.genome.contig.fa.masked.fa_R2_direct"}
 
 def get_augustus_species(wildcards):
     round = wildcards.round
     augustus_species = augustus_species_dict[round]
     return augustus_species
 
+augustus_dict = {"1":f"result/{PREFIX}/pre_R0/autoAug/autoAugPred_hints/shells",
+                 "2":f"result/{PREFIX}/R1/autoAug/autoAugPred_hints/shells",
+                 "3":f"result/{PREFIX}/R2/autoAug/autoAugPred_hints/shells"}
+
+def get_augustus_dir(wildcards):
+    round = wildcards.round
+    augustus_dir = augustus_dict[round]
+    return augustus_dir
+
 rule pre_opts:
     input:
         snap_hmm = get_hmm,
         estgff = "total_est.gff",
         pepgff = "total_pep.gff",
-        rmgff = "rm.gff"
+        rmgff = "rm.gff",
+        augustus_dir = get_augustus_dir
     params:
         round = "{round}",
         augustus_species = get_augustus_species
@@ -156,9 +177,9 @@ checkpoint pre_exe:
         "result/{PREFIX}/R{round}/maker_bopts.ctl"
     shell:
         '''
-        maker -CTL
-        mv maker_exe.ctl result/{wildcards.PREFIX}/R{wildcards.round}/
-        mv maker_bopts.ctl result/{wildcards.PREFIX}/R{wildcards.round}/
+        maker -CTL 2>/dev/null
+        cp maker_exe.ctl result/{wildcards.PREFIX}/R{wildcards.round}/
+        cp maker_bopts.ctl result/{wildcards.PREFIX}/R{wildcards.round}/
         '''
 
 # rule pre_bopts/exe:
@@ -182,7 +203,7 @@ rule run_maker:
         log="result/{PREFIX}/R{round}/{lane_number}.maker.output/{lane_number}_master_datastore_index.log"
     shell:
         '''
-        maker -genome {input.g} {input.opts} {input.bopts} {input.exe}
+        mpiexec -n 4 maker -genome {input.g} {input.opts} {input.bopts} {input.exe}
         wait
         cp -rf {wildcards.lane_number}.maker.output result/{wildcards.PREFIX}/R{wildcards.round}/
         rm -rf {wildcards.lane_number}.maker.output
@@ -190,7 +211,7 @@ rule run_maker:
 
 rule alt_log:
     input:
-        rules.run_maker.output
+        rules.run_maker.output.log
     output:
         "result/{PREFIX}/R{round}/{lane_number}.maker.output/{lane_number}_total_master_datastore_index.log"
     shell:
@@ -243,7 +264,7 @@ rule get_genome_maker_gff:
 def get_fa(wildcards):
     lane_dir = checkpoints.split_fasta.get(**wildcards).output[0]
     lane_numbers = glob_wildcards(f"result/{wildcards.PREFIX}/sample/{{lane_number}}.fa").lane_number
-    fa = expand(rules.mv.output, **wildcards, lane_number=lane_numbers)
+    fa = expand(rules.mv.output.fa, **wildcards, lane_number=lane_numbers)
     return fa
 
 rule get_ref_fa:
@@ -320,17 +341,21 @@ rule forge:
     output:
         "result/{PREFIX}/R{round}/forge.log"
     shell:
-        "forge {input.exann} {input.exdna} >{output} 2>&1"
+        '''
+        cd result/{wildcards.PREFIX}/R{wildcards.round}
+        forge export.ann export.dna >forge.log 2>&1
+        '''
 
 rule hmm_assembler:
     input:
-        files=rules.forge.output,
+        files=rules.forge.output
+    params:
         dir="result/{PREFIX}/R{round}/"
     output:
         "result/{PREFIX}/R{round}/{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm"
     shell:
         '''
-        hmm-assembler.pl snap_trained {input.dir} > {output}
+        hmm-assembler.pl snap_trained {params.dir} > {output}
         '''
 
 rule fathom_to_genbank:
@@ -364,15 +389,15 @@ rule get_subset_of_fastas:
         get_subset_of_fastas.pl -l {input.txt} -f {input.udna} -o {output}
         '''
 
-rule randomSplit:
-    input:
-        "result/{PREFIX}/R{round}/augustus.gb"
-    output:
-        "result/{PREFIX}/R{round}/augustus.gb.test"
-    shell:
-        '''
-        randomSplit.pl {input} 250
-        '''
+# rule randomSplit:
+#     input:
+#         "result/{PREFIX}/R{round}/augustus.gb"
+#     output:
+#         "result/{PREFIX}/R{round}/augustus.gb.test"
+#     shell:
+#         '''
+#         randomSplit.pl {input} 250
+#         '''
 
 rule autoAugA:
     input:
@@ -386,6 +411,9 @@ rule autoAugA:
         '''
         autoAug.pl --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct \
         --genome={input.fasta} --trainingset={input.gb} --cdna={input.cdna} --noutr
+        cd autoAug/autoAugPred_abinitio/shells
+        ./aug1
+        cd ../../../
         cp -r autoAug result/{wildcards.PREFIX}/R{wildcards.round}/.
         '''
 
@@ -403,6 +431,13 @@ rule autoAugB:
         autoAug.pl --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct \
         --genome={input.fasta} --useexisting --hints={input.gff} \
         -v -v -v  --index=1
+        cd autoAug/autoAugPred_hints/shells/
+        augustus --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct --UTR=off \
+        --hintsfile=../../hints/hints.E.gff \
+        --extrinsicCfgFile=extrinsic.M.RM.E.W.cfg --exonnames=on  \
+        --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH \
+        ../../seq/split/genome_clean.split.1.fa > aug1.out
+        cd ../../../
         mv -f autoAug/autoAugPred_hints result/{wildcards.PREFIX}/R{wildcards.round}/autoAug/.
         rm -r autoAug
         '''
@@ -411,7 +446,7 @@ rule busco:
     input:
         rules.gff3_merge.output.all_fasta
     output:
-        "result/{PREFIX}/R{round}/total.all.maker.proteins.fasta.busco.embryophyta"
+        directory("result/{PREFIX}/R{round}/total.all.maker.proteins.fasta.busco.embryophyta")
     params:
         dir_busco="total.all.maker.proteins.fasta.busco.embryophyta"
     conda:
