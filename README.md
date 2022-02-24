@@ -24,7 +24,7 @@ $ vim config/config.yaml
 
 To start the main pipeline, type in: <br>
 ```Bash
-$ nohup snakemake --cluster "bsub -o log/output -e log/error -q Q104C512G_X4 -m yi02" -j 10 -p --use-conda &
+$ nohup snakemake --cluster "bsub -o output -e error -q Q104C512G_X4 -m yi02" -j 10 -p --use-conda &
 ``` 
 
 If you want to terminate a running pipline, please type in: <br>
