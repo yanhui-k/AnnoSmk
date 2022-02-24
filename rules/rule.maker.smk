@@ -24,7 +24,7 @@ checkpoint split_fasta:
     script:
         "../bin/split_fasta1.py"
 
-rule mv:
+rule cp:
     input:
         fasta = "result/{PREFIX}/sample/{lane_number}.fa"
     output:
@@ -84,6 +84,8 @@ def prepare_opts(estgff=None, pepgff=None, rmgff=None, round=None,
         file.write(s.replace("tmp=", "TMP="))
     file.close()
 
+#Modifications are required based on the evidence provided
+
 rule pre_pre_hmm:
     output:
         hmm = expand("result/{PREFIX}/pre_R{round}/{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm",round=0,PREFIX=PREFIX),
@@ -94,17 +96,9 @@ rule pre_pre_hmm:
         touch {output.aug_dir}
         '''
 
-rule pre_pre_estgff:
-    input:
-        expand("{ESTGFF}", ESTGFF=ESTGFF)
-    output:
-        "total_est.gff"
-    shell:
-        "cp {input} {output}"
-
 rule pre_pre_pepgff:
     input:
-        expand("{PEPGFF}", PEPGFF=PEPGFF)
+        expand("result/{PREFIX}/evidence/genblast.gff",PREFIX=PREFIX)
     output:
         "total_pep.gff"
     shell:
@@ -112,9 +106,17 @@ rule pre_pre_pepgff:
 
 rule pre_pre_rmgff:
     input:
-        expand("{REPEATGFF}", REPEATGFF=REPEATGFF)
+        expand("result/{PREFIX}/evidence/repeat.gff",PREFIX=PREFIX)
     output:
         "rm.gff"
+    shell:
+        "cp {input} {output}"
+
+rule pre_pre_estgff:
+    input:
+        expand("result/{PREFIX}/evidence/total_est.gff",PREFIX=PREFIX)
+    output:
+        "total_est.gff"
     shell:
         "cp {input} {output}"
 
@@ -403,7 +405,7 @@ rule autoAugA:
     input:
         fasta="result/{PREFIX}/R{round}/genbank_gene_seqs.fasta",
         gb="result/{PREFIX}/R{round}/augustus.gb",
-        cdna=expand("{CDNAFASTA}",CDNAFASTA=CDNAFASTA)
+        cdna="result/{PREFIX}/evidence/flnc.fasta"
     output:
         "result/{PREFIX}/R{round}/autoAug/autoAugPred_abinitio/shells/aug1",
         "result/{PREFIX}/R{round}/autoAug/hints/hints.E.gff"

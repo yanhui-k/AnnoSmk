@@ -1,6 +1,6 @@
 import os
 import sys
-def split_fasta1(fasta = None, dir = None, size = 4000000):
+def split_fasta1(fasta = None, dir = None, size = None):
     #file_list = []
     z = 1
     with open(fasta, 'r') as f:
@@ -10,7 +10,7 @@ def split_fasta1(fasta = None, dir = None, size = 4000000):
             #mkdir(dir)
             pass
         else:
-            os.mkdir(dir)
+            os.makedirs(dir)
         z = 1
         file = f"{z}.fa"
         new_file_dir = os.path.join(dir,file)
@@ -30,4 +30,4 @@ def split_fasta1(fasta = None, dir = None, size = 4000000):
                 with open(new_file_dir,"w") as f:
                     f.write(">" + j)
 
-split_fasta1(snakemake.input[0],snakemake.output[0])
+split_fasta1(snakemake.input[0],snakemake.output[0],snakemake.params["size"])

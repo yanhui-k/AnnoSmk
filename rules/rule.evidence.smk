@@ -1,11 +1,6 @@
 import os
 import glob
 
-folder_2 = os.path.join(PREFIX,"*_1.fastq.gz")
-samples_2=glob.glob(folder_2)
-samples_2=[x.replace(PREFIX,"") for x in samples_2]
-samples_2=[x.replace("/","") for x in samples_2]
-samples_2=[x.replace("_1.fastq.gz","") for x in samples_2]
 folder_flnc = os.path.join(PREFIX,"*_subreads.fastq.gz")
 samples_flnc=glob.glob(folder_flnc)
 #samples_minimap=["flnc","rnaseq"]
@@ -13,7 +8,7 @@ number = [1,2,3,4,5,6,7,8]
 
 rule BuildDatabase:
     input:
-        fa=expand("{REF}",REF = REF)
+        fa=expand("{REF}",REF=REF)
     output:
         "{PREFIX}.nsq",
         "{PREFIX}.nog",
@@ -26,54 +21,63 @@ rule BuildDatabase:
 
 rule RepeatModeler:
     input:
-        fa=expand("{REF}",REF = REF),
+        fa=expand("{REF}",REF=REF),
         nsq="{PREFIX}.nsq",
         nog="{PREFIX}.nog"
     output:
-        famfa="result/{PREFIX}/evidence/consensi.fa",
-        famstk="result/{PREFIX}/evidence/families.stk"
+        famfa="result/{PREFIX}/evidence/{PREFIX}-families.fa",
+        famstk="result/{PREFIX}/evidence/{PREFIX}-families.stk"
     params:
         db="{PREFIX}"
     shell:
         '''
         RepeatModeler -pa 3 -engine ncbi -pa 100 -database {params.db}
-        cp RM_*/consensi.fa result/{wildcards.PREFIX}/evidence/
-        cp RM_*/families.stk result/{wildcards.PREFIX}/evidence/
+        cp {wildcards.PREFIX}-families.fa result/{wildcards.PREFIX}/evidence/
+        cp {wildcards.PREFIX}-families.stk result/{wildcards.PREFIX}/evidence/
         '''
 
 rule RepeatMasker:
     input:
-        fa=expand("{REF}",REF = REF),
+        fa=expand("{REF}",REF=REF),
         famfa=rules.RepeatModeler.output.famfa
     output:
-        dir="result/{PREFIX}/evidence/custom_lib.out/{PREFIX}.genome.fa.cat.gz"
+        catgz="result/{PREFIX}/evidence/{PREFIX}.cat.gz",
+        out="result/{PREFIX}/evidence/{PREFIX}.out"
+    params:
+        dir="result/{PREFIX}/evidence/"
     shell:
-        "RepeatMasker -lib {input.famfa} {input.fa} -pa 30 -dir {output.dir}"
+        '''
+        RepeatMasker -lib {input.famfa} {input.fa} -pa 30 -dir {params.dir}
+        mv result/{PREFIX}/evidence/*.cat.gz result/{PREFIX}/evidence/{PREFIX}.cat.gz
+        mv result/{PREFIX}/evidence/*.out result/{PREFIX}/evidence/{PREFIX}.out
+        mv result/{PREFIX}/evidence/*.masked result/{PREFIX}/evidence/{PREFIX}.masked
+        mv result/{PREFIX}/evidence/*.tbl result/{PREFIX}/evidence/{PREFIX}.tbl
+        '''
 
-rule post_repeatmasker_gunzip:
-    input:
-        catgz="result/{PREFIX}/evidence/custom_lib.out/{PREFIX}.genome.fa.cat.gz"
-    output:
-        cat="result/{PREFIX}/evidence/custom_lib.out/{PREFIX}.genome.fa.cat"
-    shell:
-        "gunzip {input.catgz} "
-
-rule ProcessRepeats:
-    input:
-        cat=rules.post_repeatmasker_gunzip.output.cat
-    output:
-        out="result/{PREFIX}/evidence/custom_lib.out/{PREFIX}.genome.fa.out",
-        tbl="result/{PREFIX}/evidence/custom_lib.out/{PREFIX}.genome.fa.tbl"
-    shell:
-        "ProcessRepeats -species Viridiplantae {input.cat}"
+#rule post_repeatmasker_gunzip:
+#    input:
+#        catgz="result/{PREFIX}/evidence/{REF}.cat.gz"
+#    output:
+#        cat="result/{PREFIX}/evidence/{REF}.cat"
+#    shell:
+#        "gunzip {input.catgz} "
+#
+#rule ProcessRepeats:
+#    input:
+#        cat=rules.post_repeatmasker_gunzip.output.cat
+#    output:
+#        out="result/{PREFIX}/evidence/{REF}.out",
+#        tbl="result/{PREFIX}/evidence/{REF}.tbl"
+#    shell:
+#        "ProcessRepeats -species Viridiplantae {input.cat}"
 
 rule rmOutToGFF3:
     input:
-        rules.ProcessRepeats.output.out
+        expand("result/{PREFIX}/evidence/{PREFIX}.out", PREFIX=PREFIX)
     output:
         "result/{PREFIX}/evidence/full_mask.gff3"
     shell:
-        "rmOutToGFF3.pl {input} > {output}"
+        "perl_module/rmOutToGFF3.pl {input} > {output}"
 #Can't locate CrossmatchSearchEngine.pm in @INC
 #Can't locate SearchEngineI.pm in @INC
 #Can't locate SearchResultCollection.pm in @INC
@@ -101,7 +105,7 @@ rule reformat_to_work_with_MAKER:
 
 rule bedtools1:
     input:
-        fa=expand("{REF}",REF = REF),
+        fa=expand("{REF}",REF=REF),
         gff3=rules.reformat_to_work_with_MAKER.output
     output:
         masked_fa="result/{PREFIX}/evidence/genome.fa.masked.fa"
@@ -114,11 +118,15 @@ rule bedtools1:
 
 rule hisat2build:
     input:
-        fa = expand("{REF}",REF = REF)
+        fa = expand("{REF}",REF=REF)
     output:
-        expand("{PREFIX}/{PREFIX}.fa.{number}.ht2",PREFIX=PREFIX,number=number)
+        expand("result/{PREFIX}/evidence/{PREFIX}.{number}.ht2",PREFIX=PREFIX,number=number)
     shell:
-        "hisat2-build {input} {input}"
+        '''
+        hisat2-build {input} {PREFIX}
+        mv {PREFIX}.*.ht2 result/{PREFIX}/evidence/
+        '''
+        
 
 rule fastp:
     input:
@@ -132,14 +140,15 @@ rule fastp:
 
 rule hisat2:
     input:
-        fa = expand("{REF}",REF = REF),
-        r1 = "result/{PREFIX}/evidence/{sample}_1.clean.fq.gz",
-        r2 = "result/{PREFIX}/evidence/{sample}_2.clean.fq.gz",
+        r1="result/{PREFIX}/evidence/{sample}_1.clean.fq.gz",
+        r2="result/{PREFIX}/evidence/{sample}_2.clean.fq.gz",
         index=rules.hisat2build.output
+    params:
+        index="result/{PREFIX}/evidence/{PREFIX}"
     output:
-        "result/{PREFIX}/evidence/{sample}.clean.fq.gz.bam",
+        "result/{PREFIX}/evidence/{sample}.clean.fq.gz.bam"
     shell:
-        "hisat2 --rna-strandness RF --mp 3,1 -p 30 -x {input.fa} -1 {input.r1} -2 {input.r2} | samtools sort -@ 30 -o {output}"
+        "hisat2 --rna-strandness RF --mp 3,1 -p 30 -x {params.index} -1 {input.r1} -2 {input.r2} | samtools sort -@ 30 -o {output}"
 
 # rule trinity:
 #     input:
@@ -154,9 +163,18 @@ rule hisat2:
 #           --max_memory 20G --CPU 30 \
 #           --output {output.dir}"
 
+def get_bam(wildcards):
+    folder_2 = os.path.join(PREFIX,"*_1.fastq.gz")
+    samples_2=glob.glob(folder_2)
+    samples_2=[x.replace("_1.fastq.gz","") for x in samples_2]
+    samples_2=[x.replace("/","") for x in samples_2]
+    samples_2=[x.replace(PREFIX,"") for x in samples_2]
+    bam = expand(rules.hisat2.output, PREFIX=PREFIX, sample=samples_2)
+    return bam
+
 rule samtools_merge:
     input:
-        expand("result/{PREFIX}/evidence/{sample}.clean.fq.gz.bam", PREFIX = PREFIX, sample = samples_2)
+        get_bam
     output:
         "result/{PREFIX}/evidence/merged.bam"
     shell:
@@ -164,7 +182,7 @@ rule samtools_merge:
 
 rule stringtie:
     input:
-        rules.samtools_merge.output
+        expand(rules.samtools_merge.output, PREFIX=PREFIX)
     output:
         "result/{PREFIX}/evidence/merged.gtf"
     shell:
@@ -197,7 +215,7 @@ rule cat_est_flnc:
 
 rule minimap2:
     input:
-        fa1 = expand("{REF}",REF = REF),
+        fa1 = expand("{REF}",REF=REF),
         fa2 = "result/{PREFIX}/evidence/{sample}.fasta"
     output:
         "result/{PREFIX}/evidence/{sample}.fasta.bam"
@@ -248,15 +266,19 @@ rule cat_gff:
 
 rule pre_pep:
     output:
-        pep="arath_med_sprot.pep"
+        pep=expand("{PEP}",PEP=PEP)
     shell:
-        "touch {output.pep}"
+        '''
+        touch {output.pep}
+        '''
 
 checkpoint split_pep:
     input:
         pep = rules.pre_pep.output.pep
     output:
         lane_dir = directory("result/{PREFIX}/evidence/sample/")
+    params:
+        size=400000
     script:
         "../bin/split_fasta1.py"
 
@@ -270,29 +292,45 @@ rule mv:
 
 rule prep_genblast:
     input:
-        "alignscore.sh"
+        "config/alignscore.sh"
     output:
-        "alignscore.txt"
+        "result/{PREFIX}/evidence/pep/alignscore.txt"
+    params:
+        ref="genome.fa.masked.fa",
+        dir="result/{PREFIX}/evidence/pep"
     shell:
-        "sh {input} > {output} && ln -s `which formatdb` && ln -s `which blastall`"
+        '''
+        sh {input} > {output} 
+        cd {params.dir}
+        ln -s `which formatdb` 
+        ln -s `which blastall`
+        ln -s ../{params.ref}
+        cd -
+        '''
 
 rule genblast:
     input:
         QRY="result/{PREFIX}/evidence/pep/{lane_number}.fa",
         REF="result/{PREFIX}/evidence/genome.fa.masked.fa",
-        alignscore="alignscore.txt"
+        alignscore="result/{PREFIX}/evidence/pep/alignscore.txt"
     output:
-        "result/{PREFIX}/evidence/pep/{lane_number}.fa.genblast_1.1c_2.3_s2_tdshift2_tddis0_tcls0.0_m2_score_i0_d16_0.gff",
-        "result/{PREFIX}/evidence/pep/{lane_number}.fa.genblast_1.1c_2.3_s2_tdshift2_tddis0_tcls0.0_m2_score_i0_d16_0.pro"
+        gff="result/{PREFIX}/evidence/pep/{lane_number}.fa_1.1c_2.3_s2_tdshift2_tddis0_tcls0.0_m2_score_i0_d16_0.gff",
+        pro="result/{PREFIX}/evidence/pep/{lane_number}.fa_1.1c_2.3_s2_tdshift2_tddis0_tcls0.0_m2_score_i0_d16_0.pro"
+    params:
+        dir="result/{PREFIX}/evidence/pep",
+        ref="genome.fa.masked.fa",
+        qry="{lane_number}.fa"
     shell:
         """
-        genblastG -p genblastg -q {input.QRY} -t {input.REF} -e 1e-4 -g T -f F -a 0.5 -d 100000 -r 3 -c 0.5 -s 0 -i 15 \
-            -x 20 -n 20 -v 2 -h 2 -j 0 -norepair -gff -cdna -pro -o {output}
+        cd {params.dir}
+        genblastG -q {params.qry} -t {params.ref} -e 1e-4 -g T -f F -a 0.5 -d 100000 -r 3 -c 0.5 -s 0 -i 15 \
+            -x 20 -n 20 -v 2 -h 2 -j 0 -norepair -gff -cdna -pro -o {params.qry}
+        cd -
         """
 
 rule filter_genblast:
     input:
-        "result/{PREFIX}/evidence/pep/{lane_number}.fa.genblast_1.1c_2.3_s2_tdshift2_tddis0_tcls0.0_m2_score_i0_d16_0.gff"
+        rules.genblast.output.gff
     output:
         "result/{PREFIX}/evidence/pep/{lane_number}.fa.slim.genblast.gff"
     shell:
@@ -300,7 +338,7 @@ rule filter_genblast:
 
 rule filter_early_stop:
     input:
-        "result/{PREFIX}/evidence/pep/{lane_number}.fa.genblast_1.1c_2.3_s2_tdshift2_tddis0_tcls0.0_m2_score_i0_d16_0.pro"
+        rules.genblast.output.pro
     output:
         "result/{PREFIX}/evidence/pep/{lane_number}.fa.genblast.noearly_stop.id"
     shell:
@@ -326,7 +364,7 @@ rule sed_gff:
 def get_genblast_gff(wildcards):
     lane_dir = checkpoints.split_pep.get(**wildcards).output[0]
     lane_numbers = glob_wildcards(f"result/{wildcards.PREFIX}/evidence/sample/{{lane_number}}.fa").lane_number
-    gff = expand(rules.sed_gff.output, **wildcards, PREFIX=PREFIX, lane_number=lane_numbers)
+    gff = expand(rules.sed_gff.output, **wildcards, lane_number=lane_numbers)
     return gff
 
 rule merge_gff:

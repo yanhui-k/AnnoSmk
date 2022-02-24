@@ -14,13 +14,17 @@ rule make_fasta:
     output:
         fasta = expand("{REF}",REF=REF)
     shell:
-        "touch {output.fasta}"
+        '''
+        touch {output.fasta}
+        '''
 
 checkpoint split_fasta:
     input:
         fasta = rules.make_fasta.output.fasta
     output:
         lane_dir = directory("result/{PREFIX}/sample/")
+    params:
+        size = 4000000
     script:
         "../bin/split_fasta1.py"
 
@@ -32,7 +36,7 @@ rule cp:
     shell:
         "cp {input} {output}"
 
-def prepare_opts(estgff=None, rmgff=None, round=None,
+def prepare_opts(estgff=None, pepgff=None, rmgff=None, round=None,
                  snap_hmm="", augustus_species="", output_file=None):
     # find the abspath of estgff,pepgff,rmgff
     # if round=1,snap_hmm="",if round=2,R1/R1.hmm,if round=3,R2/R2.hmm
@@ -52,7 +56,7 @@ def prepare_opts(estgff=None, rmgff=None, round=None,
         snap_hmm_dir = ""
         augustus_species = ""
         est2genome = "1"
-        protein2genome = "0"
+        protein2genome = "1"
         alt_splice = "0"
         trna = "0"
     else:
@@ -60,8 +64,10 @@ def prepare_opts(estgff=None, rmgff=None, round=None,
     config = ConfigParser()
     config.read("config/maker_opts.ctl")
     estgff_dir = os.path.abspath(estgff)
+    pepgff_dir = os.path.abspath(pepgff)
     rmgff_dir = os.path.abspath(rmgff)
     config.set("maker_opts", "est_gff", estgff_dir)
+    config.set("maker_opts", "protein_gff", pepgff_dir)
     config.set("maker_opts", "rm_gff", rmgff_dir)
     config.set("maker_opts", "snaphmm", snap_hmm_dir)
     config.set("maker_opts", "augustus_species", augustus_species)
@@ -104,7 +110,7 @@ rule pre_pre_pepgff:
 
 rule pre_pre_rmgff:
     input:
-        expand("result/{PREFIX}/evidence/repeat1.gff",PREFIX=PREFIX)
+        expand("result/{PREFIX}/evidence/repeat.gff",PREFIX=PREFIX)
     output:
         "rm.gff"
     shell:
@@ -148,6 +154,7 @@ rule pre_opts:
     input:
         snap_hmm = get_hmm,
         estgff = "total_est.gff",
+        pepgff = "total_pep.gff",
         rmgff = "rm.gff",
         augustus_dir = get_augustus_dir
     params:
@@ -156,7 +163,7 @@ rule pre_opts:
     output:
         opts_file = "result/{PREFIX}/R{round}/maker_opts{round}.ctl"
     run:
-        prepare_opts(estgff=input.estgff, 
+        prepare_opts(estgff=input.estgff, pepgff=input.pepgff, 
                     rmgff=input.rmgff, round=params.round,
                     snap_hmm=input.snap_hmm,
                     augustus_species=params.augustus_species,
@@ -406,6 +413,8 @@ rule autoAugA:
     output:
         "result/{PREFIX}/R{round}/autoAug/autoAugPred_abinitio/shells/aug1",
         "result/{PREFIX}/R{round}/autoAug/hints/hints.E.gff"
+    message:
+        "If this step reports an error, you can delete autoAug and ~/.conda/envs/repeat/config/species/{wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct, and try again"
     shell:
         '''
         autoAug.pl --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct \
@@ -449,7 +458,7 @@ rule busco:
     params:
         dir_busco="total.all.maker.proteins.fasta.busco.embryophyta"
     conda:
-        "../env/busco.yaml"
+        "../config/busco.yaml"
     shell:
         """
         cd result/{wildcards.PREFIX}/R{wildcards.round}/
