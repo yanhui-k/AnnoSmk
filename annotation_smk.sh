@@ -13,7 +13,7 @@ Usage:
     -c,--core		Specifies the number of cores for the task
     -b,--base		Set the base name annotation_smk uses to save output files.
       			At the same time, you need to create a folder with the same name to store the RNA-seq evidence.
-    -g,--genome	Set the genome file path.
+    -g,--genome		Set the genome file path.
     -p,--protein	Set the homologous protein evidence file path.
     -h,--help		Prints this usage statement.
     -V,--version	Prints the annotation_smk version.
