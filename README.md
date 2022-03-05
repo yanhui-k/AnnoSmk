@@ -19,6 +19,7 @@ $ git clone https://github.com/yanhui-k/annotation_smk.git
 
 ## Getting Started
 You can use the accompanying `environment.yaml` to creat a general conda envirment <br>
+```Bash
 $ mamba env create -f config/environment.yaml
 ``` 
 This will create a conda environment containing all dependencies for Snakemake itself.
