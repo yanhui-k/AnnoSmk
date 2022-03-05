@@ -4,7 +4,9 @@
 
 annotation_smk is a simple process of genome structure annotation, which can be parallelized and automated. <br>
 
-！[pipeline](images/pipeline.png)
+<p align="center">
+<img src="images/pipeline.png" alt="piptline" width="700">
+</p>
 
 ## Dependencies
 * [conda](https://conda.io/en/latest/index.html) <br>
@@ -17,12 +19,11 @@ $ git clone https://github.com/yanhui-k/annotation_smk.git
 
 ## Getting Started
 You can use the accompanying `environment.yaml` to creat a general conda envirment <br>
-```Bash
 $ mamba env create -f config/environment.yaml
-``` <br>
+``` 
 This will create a conda environment containing all dependencies for Snakemake itself.
 
-Activate the environment <br>
+Activate the environment 
 ```Bash
 $ conda activate annotation
 ``` 
