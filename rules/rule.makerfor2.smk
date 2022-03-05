@@ -392,7 +392,7 @@ rule get_subset_of_fastas:
         "result/{PREFIX}/R{round}/genbank_gene_seqs.fasta"
     shell:
         '''
-        get_subset_of_fastas.pl -l {input.txt} -f {input.udna} -o {output}
+        perl bin/get_subset_of_fastas.pl -l {input.txt} -f {input.udna} -o {output}
         '''
 
 # rule randomSplit:
