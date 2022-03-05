@@ -87,6 +87,6 @@ $ killall -TERM snakemake
 ``` 
 
 ## Output
-After the workflow is finished, the files created during the workflow can be found under result/<base>/.
+After the workflow is finished, the files created during the workflow can be found under result/*base_name*/.
 
 ## Steps of the Pipeline
