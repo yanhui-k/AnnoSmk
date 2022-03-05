@@ -60,7 +60,7 @@ fi
 echo "PREFIX: $prefix" > config/config.yaml
 echo "REF: $ref" >> config/config.yaml
 echo "PEP: $pep" >> config/config.yaml
-nohup snakemake --cluster "bsub -o output -e error -q Q104C512G_X4 -m yi02" -j "$core" -p --latency-wait 60 &  
+nohup snakemake --cluster "bsub -o output -e error -q Q104C512G_X4 -m yi02" -j "$core" -p --use-conda --latency-wait 60 &  
 
 #if [ $# == 0 ] || [[ $1 == "--help" ]] || [[ $1 == "-h" ]]
 #then
