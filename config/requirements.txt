@@ -1,0 +1,13 @@
+beautifulsoup4==4.10.0
+bio
+biothings-client==0.2.6
+bs4==0.0.1
+coloredlogs==15.0.1
+commonmark==0.9.1
+dataclasses
+humanfriendly==10.0
+mygene==3.2.2
+parse==1.19.0
+pysam==0.17.0
+rich==10.12.0
+soupsieve==2.2.1
