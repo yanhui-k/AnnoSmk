@@ -106,13 +106,13 @@ rule pre_pre_pepgff:
     output:
         "total_pep.gff"
     shell:
-        "cp {input} {output}"
+        "sort -n {input} | uniq > {output}"
 
 rule pre_pre_rmgff:
     input:
         expand("result/{PREFIX}/evidence/repeat.gff",PREFIX=PREFIX)
     output:
-        "rm.gff"
+        "repeat.gff"
     shell:
         "cp {input} {output}"
 
@@ -122,7 +122,7 @@ rule pre_pre_estgff:
     output:
         "total_est.gff"
     shell:
-        "cp {input} {output}"
+        "sort -n {input} | uniq > {output}"
 
 hmm_dict = {"1":f"result/{PREFIX}/pre_R0/{PREFIX}.genome.contig.fa.masked.fa_R0.hmm",
             "2":f"result/{PREFIX}/R1/{PREFIX}.genome.contig.fa.masked.fa_R1.hmm",
@@ -155,7 +155,7 @@ rule pre_opts:
         snap_hmm = get_hmm,
         estgff = "total_est.gff",
         pepgff = "total_pep.gff",
-        rmgff = "rm.gff",
+        rmgff = "repeat.gff",
         augustus_dir = get_augustus_dir
     params:
         round = "{round}",
@@ -207,9 +207,11 @@ rule run_maker:
         exe="result/{PREFIX}/R{round}/maker_exe.ctl"
     output:
         log="result/{PREFIX}/R{round}/{lane_number}.maker.output/{lane_number}_master_datastore_index.log"
+    threads:
+        THREADS
     shell:
         '''
-        maker -genome {input.g} {input.opts} {input.bopts} {input.exe}
+        maker -c {threads} -genome {input.g} {input.opts} {input.bopts} {input.exe}
         wait
         cp -rf {wildcards.lane_number}.maker.output result/{wildcards.PREFIX}/R{wildcards.round}/
         rm -rf {wildcards.lane_number}.maker.output
@@ -340,28 +342,20 @@ rule fathom4:
         mv export.dna result/{wildcards.PREFIX}/R{wildcards.round}/.
         '''
 
-rule forge:
+rule forge_hmm_assembler:
     input:
         exann="result/{PREFIX}/R{round}/export.ann",
         exdna="result/{PREFIX}/R{round}/export.dna"
     output:
-        "result/{PREFIX}/R{round}/forge.log"
+        "result/{PREFIX}/R{round}/{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm"
+    params:
+        fo="{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm"
     shell:
         '''
         cd result/{wildcards.PREFIX}/R{wildcards.round}
         forge export.ann export.dna >forge.log 2>&1
-        '''
-
-rule hmm_assembler:
-    input:
-        files=rules.forge.output
-    params:
-        dir="result/{PREFIX}/R{round}/"
-    output:
-        "result/{PREFIX}/R{round}/{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm"
-    shell:
-        '''
-        hmm-assembler.pl snap_trained {params.dir} > {output}
+        hmm-assembler.pl snap_trained . > {params.fo}
+        cd -
         '''
 
 rule fathom_to_genbank:
@@ -372,7 +366,7 @@ rule fathom_to_genbank:
         "result/{PREFIX}/R{round}/augustus.gb"
     shell:
         '''
-        perl bin/fathom_to_genbank.pl --annotation_file {input.uann} --dna_file {input.udna}  --genbank_file {output} --number 500
+        fathom_to_genbank.pl --annotation_file {input.uann} --dna_file {input.udna}  --genbank_file {output} --number 500
         '''
 #fathom_to_genbank.pl文件需要修改perl的路径
 
@@ -392,7 +386,7 @@ rule get_subset_of_fastas:
         "result/{PREFIX}/R{round}/genbank_gene_seqs.fasta"
     shell:
         '''
-        perl bin/get_subset_of_fastas.pl -l {input.txt} -f {input.udna} -o {output}
+        get_subset_of_fastas.pl -l {input.txt} -f {input.udna} -o {output}
         '''
 
 # rule randomSplit:
@@ -409,15 +403,16 @@ rule autoAugA:
     input:
         fasta="result/{PREFIX}/R{round}/genbank_gene_seqs.fasta",
         gb="result/{PREFIX}/R{round}/augustus.gb",
-        rna="result/{PREFIX}/evidence/rnaseq.fasta"
+        rna="result/{PREFIX}/evidence/flnc.fasta"
     output:
         "result/{PREFIX}/R{round}/autoAug/autoAugPred_abinitio/shells/aug1",
         "result/{PREFIX}/R{round}/autoAug/hints/hints.E.gff"
     message:
-        "If this step reports an error, you can delete autoAug and ~/.conda/envs/repeat/config/species/{wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct, and try again"
+        "If this step reports an error, you can delete autoAug and ~/.conda/envs/annotation/config/species/{wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct, and try again"
+    threads: THREADS
     shell:
         '''
-        autoAug.pl --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct \
+        autoAug.pl --cpus={threads} --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct \
         --genome={input.fasta} --trainingset={input.gb} --cdna={input.rna} --noutr
         cd autoAug/autoAugPred_abinitio/shells
         ./aug1
@@ -434,9 +429,10 @@ rule autoAugB:
         gff="result/{PREFIX}/R{round}/autoAug/hints/hints.E.gff"
     output:
         directory("result/{PREFIX}/R{round}/autoAug/autoAugPred_hints/shells")
+    threads: THREADS
     shell:
         '''
-        autoAug.pl --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct \
+        autoAug.pl --cpus={threads} --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct \
         --genome={input.fasta} --useexisting --hints={input.gff} \
         -v -v -v  --index=1
         cd autoAug/autoAugPred_hints/shells/
@@ -446,7 +442,7 @@ rule autoAugB:
         --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH \
         ../../seq/split/genome_clean.split.1.fa > aug1.out
         cd ../../../
-        mv -f autoAug/autoAugPred_hints result/{wildcards.PREFIX}/R{wildcards.round}/autoAug/.
+        cp -r autoAug/autoAugPred_hints result/{wildcards.PREFIX}/R{wildcards.round}/autoAug/.
         rm -r autoAug
         '''
 
@@ -464,7 +460,13 @@ rule busco:
         cd result/{wildcards.PREFIX}/R{wildcards.round}/
         busco -f -c 64 -m prot -i ../../../{input} -o {params.dir_busco} -l embryophyta_odb10
         """
-
+rule AED:
+    input:
+        rules.gff3_merge.output.all_gff
+    output:
+        "result/{PREFIX}/R{round}/AED.csv"
+    shell:
+        "perl perl_module/AED_cdf_generator.pl -b 0.025 {input} > {output}"
 
 
 

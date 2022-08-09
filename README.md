@@ -41,7 +41,7 @@ The FASTQ files of RNA-seq need to follow a specific naming convention:
 
  ![](images/fastq.png#crop=0&crop=0&crop=1&crop=1&id=JMq0R&originalType=binary&ratio=1&rotation=0&showTitle=false&status=done&style=none&title=) 
 
-For example, under the folder `/tora`
+For example, under the folder `tora`
 
 ```
 samplename1_1.fastq.gz  
@@ -51,7 +51,7 @@ samplename2_subreads.fastq.gz
 
 Note: All RNA-Seq data should be stored in a folder named base name (freely named, and will be used in the command).
 
-The FASTA of protein evidence is also required to improve annotation accuracy. You can download homologous protein sequence from the website [uniprot](https://www.uniprot.org/), and merge them into a FASTA format file and provide it to annotation_smk.
+The FASTA of protein evidence is also required to improve annotation accuracy. You can download homologous protein sequence from the website [uniprot](https://www.uniprot.org/), and merge them into a FASTA format file and provide it to annotation_smk. 
 
 ### Running annotation with the "annotation_smk.sh" script
 
@@ -73,6 +73,8 @@ For example, gene annotation for _tora/tora.fa_, there is homologous protein evi
 ```bash
 $ ./annotation.sh -c 10 -b tora -g tora/tora.fa -p tora/arath_med_sprot.pep
 ```
+
+Do not start the input file with ./, 
 
 ### Running annotation_smk manuall
 
