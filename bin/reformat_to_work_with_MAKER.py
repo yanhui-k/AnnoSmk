@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+import sys
 def reformat_to_work_with_MAKER(infile = None, outfile = None):
     infile = open(infile, "r")
     outfile = open(outfile, "w")
@@ -12,4 +14,4 @@ def reformat_to_work_with_MAKER(infile = None, outfile = None):
             outfile.write(line)
     infile.close()
     outfile.close()
-reformat_to_work_with_MAKER(snakemake.input[0], snakemake.output[0])
+reformat_to_work_with_MAKER(sys.argv[1], sys.argv[2])

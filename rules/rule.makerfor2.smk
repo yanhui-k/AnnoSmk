@@ -22,17 +22,17 @@ checkpoint split_fasta:
     input:
         fasta = rules.make_fasta.output.fasta
     output:
-        lane_dir = directory("result/{PREFIX}/sample/")
+        lane_dir = directory("annotation_smk/{PREFIX}/sample/")
     params:
         size = 4000000
-    script:
-        "../bin/split_fasta1.py"
+    shell:
+        "split_fasta.py {input} {output} {params.size}"
 
 rule cp:
     input:
-        fasta = "result/{PREFIX}/sample/{lane_number}.fa"
+        fasta = "annotation_smk/{PREFIX}/sample/{lane_number}.fa"
     output:
-        fa = "result/{PREFIX}/R{round}/{lane_number}.fa"
+        fa = "annotation_smk/{PREFIX}/R{round}/{lane_number}.fa"
     shell:
         "cp {input} {output}"
 
@@ -92,8 +92,8 @@ def prepare_opts(estgff=None, pepgff=None, rmgff=None, round=None,
 
 rule pre_pre_hmm:
     output:
-        hmm = expand("result/{PREFIX}/pre_R{round}/{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm",round=0,PREFIX=PREFIX),
-        aug_dir = expand("result/{PREFIX}/pre_R{round}/autoAug/autoAugPred_hints/shells",round=0,PREFIX=PREFIX)
+        hmm = expand("annotation_smk/{PREFIX}/pre_R{round}/{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm",round=0,PREFIX=PREFIX),
+        aug_dir = expand("annotation_smk/{PREFIX}/pre_R{round}/autoAug/autoAugPred_hints/shells",round=0,PREFIX=PREFIX)
     shell:
         '''
         touch {output.hmm}
@@ -102,7 +102,7 @@ rule pre_pre_hmm:
 
 rule pre_pre_pepgff:
     input:
-        expand("result/{PREFIX}/evidence/genblast.gff",PREFIX=PREFIX)
+        expand("annotation_smk/{PREFIX}/evidence/genblast.gff",PREFIX=PREFIX)
     output:
         "total_pep.gff"
     shell:
@@ -110,7 +110,7 @@ rule pre_pre_pepgff:
 
 rule pre_pre_rmgff:
     input:
-        expand("result/{PREFIX}/evidence/repeat.gff",PREFIX=PREFIX)
+        expand("annotation_smk/{PREFIX}/evidence/repeat.gff",PREFIX=PREFIX)
     output:
         "repeat.gff"
     shell:
@@ -118,15 +118,15 @@ rule pre_pre_rmgff:
 
 rule pre_pre_estgff:
     input:
-        expand("result/{PREFIX}/evidence/total_est.gff",PREFIX=PREFIX)
+        expand("annotation_smk/{PREFIX}/evidence/total_est.gff",PREFIX=PREFIX)
     output:
         "total_est.gff"
     shell:
         "sort -n {input} | uniq > {output}"
 
-hmm_dict = {"1":f"result/{PREFIX}/pre_R0/{PREFIX}.genome.contig.fa.masked.fa_R0.hmm",
-            "2":f"result/{PREFIX}/R1/{PREFIX}.genome.contig.fa.masked.fa_R1.hmm",
-            "3":f"result/{PREFIX}/R2/{PREFIX}.genome.contig.fa.masked.fa_R2.hmm"}
+hmm_dict = {"1":f"annotation_smk/{PREFIX}/pre_R0/{PREFIX}.genome.contig.fa.masked.fa_R0.hmm",
+            "2":f"annotation_smk/{PREFIX}/R1/{PREFIX}.genome.contig.fa.masked.fa_R1.hmm",
+            "3":f"annotation_smk/{PREFIX}/R2/{PREFIX}.genome.contig.fa.masked.fa_R2.hmm"}
 
 def get_hmm(wildcards):
     round = wildcards.round
@@ -141,9 +141,9 @@ def get_augustus_species(wildcards):
     augustus_species = augustus_species_dict[round]
     return augustus_species
 
-augustus_dict = {"1":f"result/{PREFIX}/pre_R0/autoAug/autoAugPred_hints/shells",
-                 "2":f"result/{PREFIX}/R1/autoAug/autoAugPred_hints/shells",
-                 "3":f"result/{PREFIX}/R2/autoAug/autoAugPred_hints/shells"}
+augustus_dict = {"1":f"annotation_smk/{PREFIX}/pre_R0/autoAug/autoAugPred_hints/shells",
+                 "2":f"annotation_smk/{PREFIX}/R1/autoAug/autoAugPred_hints/shells",
+                 "3":f"annotation_smk/{PREFIX}/R2/autoAug/autoAugPred_hints/shells"}
 
 def get_augustus_dir(wildcards):
     round = wildcards.round
@@ -161,7 +161,7 @@ rule pre_opts:
         round = "{round}",
         augustus_species = get_augustus_species
     output:
-        opts_file = "result/{PREFIX}/R{round}/maker_opts{round}.ctl"
+        opts_file = "annotation_smk/{PREFIX}/R{round}/maker_opts{round}.ctl"
     run:
         prepare_opts(estgff=input.estgff, pepgff=input.pepgff, 
                     rmgff=input.rmgff, round=params.round,
@@ -171,7 +171,7 @@ rule pre_opts:
 
 # def get_opts(wildcards):
 #     opts_file = checkpoints.pre_exe.get(**wildcards).output[0]
-#     round = glob_wildcards(f"result/{wildcards.PREFIX}/R{{round}}/maker_exe.ctl").round
+#     round = glob_wildcards(f"annotation_smk/{wildcards.PREFIX}/R{{round}}/maker_exe.ctl").round
 #     # for num in round:
 #     #     pren = int(num) - 1
 #     opts_file = expand(rules.pre_opts.output,**wildcards,pren=lambda w: w-1)
@@ -179,41 +179,30 @@ rule pre_opts:
 
 checkpoint pre_exe:
     output:
-        "result/{PREFIX}/R{round}/maker_exe.ctl",
-        "result/{PREFIX}/R{round}/maker_bopts.ctl"
+        "annotation_smk/{PREFIX}/R{round}/maker_exe.ctl",
+        "annotation_smk/{PREFIX}/R{round}/maker_bopts.ctl"
     shell:
         '''
         maker -CTL 2>/dev/null
-        cp maker_exe.ctl result/{wildcards.PREFIX}/R{wildcards.round}/
-        cp maker_bopts.ctl result/{wildcards.PREFIX}/R{wildcards.round}/
+        cp maker_exe.ctl annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/
+        cp maker_bopts.ctl annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/
         '''
-
-# rule pre_bopts/exe:
-# 现在用上面的方法
-#     input:
-#         "config/bopts.txt"
-#     output:
-#         "result/{PREFIX}/R{round}/maker_bopts.ctl"
-#     shell:
-#         '''
-#         cat {input} > {output}
-#         '''
 
 rule run_maker:
     input:
-        g="result/{PREFIX}/R{round}/{lane_number}.fa",
-        opts="result/{PREFIX}/R{round}/maker_opts{round}.ctl",
-        bopts="result/{PREFIX}/R{round}/maker_bopts.ctl",
-        exe="result/{PREFIX}/R{round}/maker_exe.ctl"
+        g="annotation_smk/{PREFIX}/R{round}/{lane_number}.fa",
+        opts="annotation_smk/{PREFIX}/R{round}/maker_opts{round}.ctl",
+        bopts="annotation_smk/{PREFIX}/R{round}/maker_bopts.ctl",
+        exe="annotation_smk/{PREFIX}/R{round}/maker_exe.ctl"
     output:
-        log="result/{PREFIX}/R{round}/{lane_number}.maker.output/{lane_number}_master_datastore_index.log"
+        log="annotation_smk/{PREFIX}/R{round}/{lane_number}.maker.output/{lane_number}_master_datastore_index.log"
     threads:
         THREADS
     shell:
         '''
         maker -c {threads} -genome {input.g} {input.opts} {input.bopts} {input.exe}
         wait
-        cp -rf {wildcards.lane_number}.maker.output result/{wildcards.PREFIX}/R{wildcards.round}/
+        cp -rf {wildcards.lane_number}.maker.output annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/
         rm -rf {wildcards.lane_number}.maker.output
         '''
 
@@ -221,7 +210,7 @@ rule alt_log:
     input:
         rules.run_maker.output.log
     output:
-        "result/{PREFIX}/R{round}/{lane_number}.maker.output/{lane_number}_total_master_datastore_index.log"
+        "annotation_smk/{PREFIX}/R{round}/{lane_number}.maker.output/{lane_number}_total_master_datastore_index.log"
     shell:
         '''
         cat {input} |sed "s/\t/\t{wildcards.lane_number}.maker.output\//" \
@@ -230,7 +219,7 @@ rule alt_log:
 
 def get_log(wildcards):
     lane_dir = checkpoints.split_fasta.get(**wildcards).output[0]
-    lane_numbers = glob_wildcards(f"result/{wildcards.PREFIX}/sample/{{lane_number}}.fa").lane_number
+    lane_numbers = glob_wildcards(f"annotation_smk/{wildcards.PREFIX}/sample/{{lane_number}}.fa").lane_number
     log = expand(rules.alt_log.output, **wildcards, lane_number=lane_numbers)
     return log
 
@@ -238,7 +227,7 @@ rule merge_log:
     input:
         get_log
     output:
-        "result/{PREFIX}/R{round}/total_master_datastore_index.log"
+        "annotation_smk/{PREFIX}/R{round}/total_master_datastore_index.log"
     shell:
         '''
         cat {input} > {output}
@@ -248,9 +237,9 @@ rule gff3_merge:
     input:
         rules.merge_log.output
     output:
-        all_gff="result/{PREFIX}/R{round}/genome.all.gff",
-        noseq_gff="result/{PREFIX}/R{round}/genome.all.noseq.gff",
-        all_fasta="result/{PREFIX}/R{round}/total.all.maker.proteins.fasta"
+        all_gff="annotation_smk/{PREFIX}/R{round}/genome.all.gff",
+        noseq_gff="annotation_smk/{PREFIX}/R{round}/genome.all.noseq.gff",
+        all_fasta="annotation_smk/{PREFIX}/R{round}/total.all.maker.proteins.fasta"
     shell:
         '''
         fasta_merge -d {input}
@@ -263,7 +252,7 @@ rule get_genome_maker_gff:
     input:
         rules.gff3_merge.output.noseq_gff
     output:
-        "result/{PREFIX}/R{round}/genome.maker.gff"
+        "annotation_smk/{PREFIX}/R{round}/genome.maker.gff"
     shell:
         '''
         awk '$2=="maker"' {input} > {output}
@@ -271,7 +260,7 @@ rule get_genome_maker_gff:
 
 def get_fa(wildcards):
     lane_dir = checkpoints.split_fasta.get(**wildcards).output[0]
-    lane_numbers = glob_wildcards(f"result/{wildcards.PREFIX}/sample/{{lane_number}}.fa").lane_number
+    lane_numbers = glob_wildcards(f"annotation_smk/{wildcards.PREFIX}/sample/{{lane_number}}.fa").lane_number
     fa = expand(rules.cp.output.fa, **wildcards, lane_number=lane_numbers)
     return fa
 
@@ -279,80 +268,80 @@ rule get_ref_fa:
     input:
         get_fa
     output:
-        "result/{PREFIX}/R{round}/ref.fa"
+        "annotation_smk/{PREFIX}/R{round}/ref.fa"
     shell:
         "cat {input} > {output}"
 
 rule maker2zff:
     input:
-        "result/{PREFIX}/R{round}/genome.all.gff"
+        "annotation_smk/{PREFIX}/R{round}/genome.all.gff"
     output:
-        ann="result/{PREFIX}/R{round}/genome.ann",
-        dna="result/{PREFIX}/R{round}/genome.dna"
+        ann="annotation_smk/{PREFIX}/R{round}/genome.ann",
+        dna="annotation_smk/{PREFIX}/R{round}/genome.dna"
     shell:
         '''
         maker2zff -x 0.25 -l 50 {input}
-        mv genome.ann result/{wildcards.PREFIX}/R{wildcards.round}/.
-        mv genome.dna result/{wildcards.PREFIX}/R{wildcards.round}/.
+        mv genome.ann annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/.
+        mv genome.dna annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/.
         '''
 
 rule fathom1:
     input:
-        ann="result/{PREFIX}/R{round}/genome.ann",
-        dna="result/{PREFIX}/R{round}/genome.dna"
+        ann="annotation_smk/{PREFIX}/R{round}/genome.ann",
+        dna="annotation_smk/{PREFIX}/R{round}/genome.dna"
     output:
-        "result/{PREFIX}/R{round}/gene-stats.log"
+        "annotation_smk/{PREFIX}/R{round}/gene-stats.log"
     shell:
         "fathom -gene-stats {input.ann} {input.dna} >{output} 2>&1"
 
 rule fathom2:
     input:
-        ann="result/{PREFIX}/R{round}/genome.ann",
-        dna="result/{PREFIX}/R{round}/genome.dna"
+        ann="annotation_smk/{PREFIX}/R{round}/genome.ann",
+        dna="annotation_smk/{PREFIX}/R{round}/genome.dna"
     output:
-        "result/{PREFIX}/R{round}/validate.log"
+        "annotation_smk/{PREFIX}/R{round}/validate.log"
     shell:
         "fathom -validate {input.ann} {input.dna} >{output} 2>&1"
 
 rule fathom3:
     input:
-        ann="result/{PREFIX}/R{round}/genome.ann",
-        dna="result/{PREFIX}/R{round}/genome.dna"
+        ann="annotation_smk/{PREFIX}/R{round}/genome.ann",
+        dna="annotation_smk/{PREFIX}/R{round}/genome.dna"
     output:
-        uann="result/{PREFIX}/R{round}/uni.ann",
-        udna="result/{PREFIX}/R{round}/uni.dna"
+        uann="annotation_smk/{PREFIX}/R{round}/uni.ann",
+        udna="annotation_smk/{PREFIX}/R{round}/uni.dna"
     shell:
         '''
         fathom -categorize 1000 {input.ann} {input.dna}
-        mv uni.ann result/{wildcards.PREFIX}/R{wildcards.round}/.
-        mv uni.dna result/{wildcards.PREFIX}/R{wildcards.round}/.
+        mv uni.ann annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/.
+        mv uni.dna annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/.
         '''
 
 rule fathom4:
     input:
-        uann="result/{PREFIX}/R{round}/uni.ann",
-        udna="result/{PREFIX}/R{round}/uni.dna"
+        uann="annotation_smk/{PREFIX}/R{round}/uni.ann",
+        udna="annotation_smk/{PREFIX}/R{round}/uni.dna"
     output:
-        exann="result/{PREFIX}/R{round}/export.ann",
-        exdna="result/{PREFIX}/R{round}/export.dna"
+        exann="annotation_smk/{PREFIX}/R{round}/export.ann",
+        exdna="annotation_smk/{PREFIX}/R{round}/export.dna"
     shell:
         '''
         fathom -export 1000 -plus {input.uann} {input.udna}
-        mv export.ann result/{wildcards.PREFIX}/R{wildcards.round}/.
-        mv export.dna result/{wildcards.PREFIX}/R{wildcards.round}/.
+        mv export.ann annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/.
+        mv export.dna annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/.
         '''
 
 rule forge_hmm_assembler:
     input:
-        exann="result/{PREFIX}/R{round}/export.ann",
-        exdna="result/{PREFIX}/R{round}/export.dna"
+        exann="annotation_smk/{PREFIX}/R{round}/export.ann",
+        exdna="annotation_smk/{PREFIX}/R{round}/export.dna"
     output:
-        "result/{PREFIX}/R{round}/{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm"
+        "annotation_smk/{PREFIX}/R{round}/{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm"
     params:
         fo="{PREFIX}.genome.contig.fa.masked.fa_R{round}.hmm"
     shell:
         '''
-        cd result/{wildcards.PREFIX}/R{wildcards.round}
+        cd annotation_smk/{wildcards.PREFIX}/R{wildcards.round}
         forge export.ann export.dna >forge.log 2>&1
         hmm-assembler.pl snap_trained . > {params.fo}
         cd -
@@ -360,10 +349,10 @@ rule forge_hmm_assembler:
 
 rule fathom_to_genbank:
     input:
-        uann="result/{PREFIX}/R{round}/uni.ann",
-        udna="result/{PREFIX}/R{round}/uni.dna"
+        uann="annotation_smk/{PREFIX}/R{round}/uni.ann",
+        udna="annotation_smk/{PREFIX}/R{round}/uni.dna"
     output:
-        "result/{PREFIX}/R{round}/augustus.gb"
+        "annotation_smk/{PREFIX}/R{round}/augustus.gb"
     shell:
         '''
         fathom_to_genbank.pl --annotation_file {input.uann} --dna_file {input.udna}  --genbank_file {output} --number 500
@@ -372,18 +361,18 @@ rule fathom_to_genbank:
 
 rule perl_cat:
     input:
-        "result/{PREFIX}/R{round}/augustus.gb"
+        "annotation_smk/{PREFIX}/R{round}/augustus.gb"
     output:
-        "result/{PREFIX}/R{round}/genbank_gene_list.txt"
-    script:
-        "../bin/cat.py"
+        "annotation_smk/{PREFIX}/R{round}/genbank_gene_list.txt"
+    shell:
+        "cat.py {input} {output}"
 
 rule get_subset_of_fastas:
     input:
-        txt="result/{PREFIX}/R{round}/genbank_gene_list.txt",
-        udna="result/{PREFIX}/R{round}/uni.dna"
+        txt="annotation_smk/{PREFIX}/R{round}/genbank_gene_list.txt",
+        udna="annotation_smk/{PREFIX}/R{round}/uni.dna"
     output:
-        "result/{PREFIX}/R{round}/genbank_gene_seqs.fasta"
+        "annotation_smk/{PREFIX}/R{round}/genbank_gene_seqs.fasta"
     shell:
         '''
         get_subset_of_fastas.pl -l {input.txt} -f {input.udna} -o {output}
@@ -391,9 +380,9 @@ rule get_subset_of_fastas:
 
 # rule randomSplit:
 #     input:
-#         "result/{PREFIX}/R{round}/augustus.gb"
+#         "annotation_smk/{PREFIX}/R{round}/augustus.gb"
 #     output:
-#         "result/{PREFIX}/R{round}/augustus.gb.test"
+#         "annotation_smk/{PREFIX}/R{round}/augustus.gb.test"
 #     shell:
 #         '''
 #         randomSplit.pl {input} 250
@@ -401,12 +390,12 @@ rule get_subset_of_fastas:
 
 rule autoAugA:
     input:
-        fasta="result/{PREFIX}/R{round}/genbank_gene_seqs.fasta",
-        gb="result/{PREFIX}/R{round}/augustus.gb",
-        rna="result/{PREFIX}/evidence/flnc.fasta"
+        fasta="annotation_smk/{PREFIX}/R{round}/genbank_gene_seqs.fasta",
+        gb="annotation_smk/{PREFIX}/R{round}/augustus.gb",
+        rna=augustus_cdna
     output:
-        "result/{PREFIX}/R{round}/autoAug/autoAugPred_abinitio/shells/aug1",
-        "result/{PREFIX}/R{round}/autoAug/hints/hints.E.gff"
+        "annotation_smk/{PREFIX}/R{round}/autoAug/autoAugPred_abinitio/shells/aug1",
+        "annotation_smk/{PREFIX}/R{round}/autoAug/hints/hints.E.gff"
     message:
         "If this step reports an error, you can delete autoAug and ~/.conda/envs/annotation/config/species/{wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct, and try again"
     threads: THREADS
@@ -417,7 +406,7 @@ rule autoAugA:
         cd autoAug/autoAugPred_abinitio/shells
         ./aug1
         cd ../../../
-        cp -r autoAug result/{wildcards.PREFIX}/R{wildcards.round}/.
+        cp -r autoAug annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/.
         '''
 
 #如果有autoAug文件夹或者在/nfs/yanhui/.conda/envs/repeat/config/species下
@@ -425,10 +414,10 @@ rule autoAugA:
 
 rule autoAugB:
     input:
-        fasta="result/{PREFIX}/R{round}/genbank_gene_seqs.fasta",
-        gff="result/{PREFIX}/R{round}/autoAug/hints/hints.E.gff"
+        fasta="annotation_smk/{PREFIX}/R{round}/genbank_gene_seqs.fasta",
+        gff="annotation_smk/{PREFIX}/R{round}/autoAug/hints/hints.E.gff"
     output:
-        directory("result/{PREFIX}/R{round}/autoAug/autoAugPred_hints/shells")
+        directory("annotation_smk/{PREFIX}/R{round}/autoAug/autoAugPred_hints/shells")
     threads: THREADS
     shell:
         '''
@@ -442,7 +431,7 @@ rule autoAugB:
         --AUGUSTUS_CONFIG_PATH=$AUGUSTUS_CONFIG_PATH \
         ../../seq/split/genome_clean.split.1.fa > aug1.out
         cd ../../../
-        cp -r autoAug/autoAugPred_hints result/{wildcards.PREFIX}/R{wildcards.round}/autoAug/.
+        cp -r autoAug/autoAugPred_hints annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/autoAug/.
         rm -r autoAug
         '''
 
@@ -450,23 +439,23 @@ rule busco:
     input:
         rules.gff3_merge.output.all_fasta
     output:
-        directory("result/{PREFIX}/R{round}/total.all.maker.proteins.fasta.busco.embryophyta")
+        directory("annotation_smk/{PREFIX}/R{round}/total.all.maker.proteins.fasta.busco.embryophyta")
     params:
         dir_busco="total.all.maker.proteins.fasta.busco.embryophyta"
     conda:
         "../config/busco.yaml"
     shell:
         """
-        cd result/{wildcards.PREFIX}/R{wildcards.round}/
+        cd annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/
         busco -f -c 64 -m prot -i ../../../{input} -o {params.dir_busco} -l embryophyta_odb10
         """
 rule AED:
     input:
         rules.gff3_merge.output.all_gff
     output:
-        "result/{PREFIX}/R{round}/AED.csv"
+        "annotation_smk/{PREFIX}/R{round}/AED.csv"
     shell:
-        "perl perl_module/AED_cdf_generator.pl -b 0.025 {input} > {output}"
+        "AED_cdf_generator.pl -b 0.025 {input} > {output}"
 
 
 

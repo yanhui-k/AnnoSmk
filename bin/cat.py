@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+import sys
+
 def cat(input,output):
     file1=open(input,"r")
     file2=open(output,"w")
@@ -9,5 +12,5 @@ def cat(input,output):
             file2.write("\n")
     file1.close()
     file2.close()
-        
-cat(snakemake.input[0],snakemake.output[0])
+
+cat(sys.argv[1], sys.argv[2])

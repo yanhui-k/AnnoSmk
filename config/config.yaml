@@ -1,0 +1,4 @@
+PREFIX: tair
+REF: tair/tair_genome.fa
+PEP: tair/uniprot_sprot.fasta
+THREADS: 10

@@ -1,33 +1,31 @@
 import os
 import sys
+from Bio import SeqIO
 def split_fasta1(fasta = None, dir = None, size = None):
     #file_list = []
+    cwd = os.getcwd()
+    if os.path.exists(dir) == False:
+        os.makedirs(dir)
+    os.chdir(dir)
+    fasta_dir = os.path.join(cwd, fasta)
     z = 1
-    with open(fasta, 'r') as f:
-        data = f.read().split('>')
-        if os.path.exists(dir) == "True":
-            #mv(dir, dir + str(time.time()).replace('.', ''))
-            #mkdir(dir)
-            pass
-        else:
-            os.makedirs(dir)
-        z = 1
-        file = f"{z}.fa"
-        new_file_dir = os.path.join(dir,file)
-        open(new_file_dir, "w")
+    open("1.fa", "w")
+    
+    with open(fasta_dir, 'r') as fi:
+        data = fi.read().split('>')
         for i, j in enumerate(data[1:], start=1):
-            #(header, content) = j.split('\n', 1)
-            #new_file_name = f'{header}.fasta'
-            #new_file_dir = os.path.join(dir,new_file_name)
-            #file_list.append(new_file_name)
-            if os.path.getsize(new_file_dir) < size:
-                with open(new_file_dir, 'a') as f:
-                    f.write('>' + j)
+            file = f"{z}.fa"
+            if os.path.getsize(file) < size:
+                with open(file, 'a') as fo:
+                    fo.write(">" + j)
+                    fo.close()
             else:
                 z += 1
                 file = f"{z}.fa"
-                new_file_dir = os.path.join(dir, file)
-                with open(new_file_dir,"w") as f:
-                    f.write(">" + j)
+                with open(file, "w") as fo:
+                    fo.write(">" + j)
+                    fo.close()
+        fi.close()
+    os.chdir(cwd)
 
 split_fasta1(snakemake.input[0],snakemake.output[0],snakemake.params["size"])
