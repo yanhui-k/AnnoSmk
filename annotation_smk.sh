@@ -121,21 +121,21 @@ rule all:
 ''' > annotation_smk/annotation.py
 
 if [ ! "$cluster" ]; then
-    nohup snakemake -s annotation_smk/annotation.py -c"$core" -np > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
+    nohup snakemake -s annotation_smk/annotation.py -c"$core" -p > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
 fi
 
 if [ "$cluster" == "bsub" ]; then
     if [[ ! -d 'annotation_smk/log_'$prefix'_'$time1 ]];then
         mkdir annotation_smk/log_"$prefix"_"$time1"
     fi
-    nohup snakemake -s annotation_smk/annotation.py --cluster "bsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$queue" -m "$hosts" -n {threads}" -j "$core" -p > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
+    nohup snakemake -s annotation_smk/annotation.py --cluster "bsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$queue" -m "$hosts" -n {threads}" -j "$core" -p --use-conda > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
 fi
 
 if [ "$cluster" == "qsub" ]; then
     if [[ ! -d 'annotation_smk/log_'$prefix"_"$time1 ]];then
         mkdir annotation_smk/log_"$prefix"_"$time1"
     fi
-    nohup snakemake -s annotation_smk/annotation.py --cluster "qsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$hosts" {threads}" -j "$core" -np --use-conda > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
+    nohup snakemake -s annotation_smk/annotation.py --cluster "qsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$hosts" {threads}" -j "$core" -p --use-conda > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
 fi
 
 #nohup snakemake -s annotation_smk/annotation.py --cluster "bsub -o log_"$prefix"_"$time1"/output.{rulename} -e log_"$prefix"_"$time1"/error.{rulename} -q Q104C512G_X4 -m yi02 -n {threads}" -j "$core" -p --use-conda &  
