@@ -121,7 +121,7 @@ rule all:
 ''' > annotation_smk/annotation.py
 
 if [ ! "$cluster" ]; then
-    nohup snakemake -s annotation_smk/annotation.py -c"$core" -p > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
+    nohup snakemake -s annotation_smk/annotation.py -c"$core" -p --use-conda > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
 fi
 
 if [ "$cluster" == "bsub" ]; then
