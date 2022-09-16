@@ -458,7 +458,13 @@ rule AED:
         "AED_cdf_generator.pl -b 0.025 {input} > {output}"
 
 
-
+rule maker_gff:
+    input:
+        expand(rules.gff3_merge.output.all_gff,PREFIX=PREFIX, round=3)
+    output:
+        expand("annotation_smk/{PREFIX}.gff",PREFIX=PREFIX)
+    shell:
+        "maker_gff.py {input} {output}"
 
 
 
