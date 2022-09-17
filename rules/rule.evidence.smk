@@ -17,6 +17,8 @@ elif samples_flnc != []:
     prefix_est=["rnaseq","flnc"]
     augustus_cdna="annotation_smk/{PREFIX}/evidence/flnc.fasta"
 
+localrules:
+    cat_flnc_gff
 
 folder_d = os.path.join(PREFIX,"*_1.fastq.gz")
 samples_d=glob.glob(folder_d)
@@ -282,17 +284,53 @@ rule bed2gff3:
     shell:
         "gt bed_to_gff3 {input} | sort -k9,9 -k1,1 -k7,7 -k4,4n  > {output}"
 
-rule format_gt_gff_to_maker_gff:
+checkpoint split_flnc_gff3:
     input:
-        rules.bed2gff3.output
+        pep = "annotation_smk/{PREFIX}/evidence/flnc.fasta.rawgff"
     output:
-        "annotation_smk/{PREFIX}/evidence/{sample}.fasta.rawgff.gff"
+        lane_dir = directory("annotation_smk/{PREFIX}/evidence/split_flnc_gff3/")
+    shell:
+        '''
+        mkdir annotation_smk/{wildcards.PREFIX}/evidence/split_flnc_gff3/
+        split -l 300 -d {input} annotation_smk/{wildcards.PREFIX}/evidence/split_flnc_gff3/flnc_ 
+        '''
+
+rule format_gt_flnc_gff_to_maker_gff:
+    input:
+        "annotation_smk/{PREFIX}/evidence/split_flnc_gff3/flnc_{lane_number}"
+    output:
+        "annotation_smk/{PREFIX}/evidence/split_flnc_gff3/flnc_{lane_number}.gff"
     shell:
         "maker.py format_gt_gff_to_maker_gff {input}"
 
-rule cat_gff:
+rule format_gt_rnaseq_gff_to_maker_gff:
     input:
-        expand("annotation_smk/{PREFIX}/evidence/{sample}.fasta.rawgff.gff",PREFIX=PREFIX,sample=prefix_est)
+        "annotation_smk/{PREFIX}/evidence/rnaseq.fasta.rawgff"
+    output:
+        "annotation_smk/{PREFIX}/evidence/rnaseq_maker.gff"
+    shell:
+        '''
+        maker.py format_gt_gff_to_maker_gff {input}
+        mv {input}.gff {output}
+        '''
+
+def get_flnc_gff3(wildcards):
+    lane_dir = checkpoints.split_flnc_gff3.get(**wildcards).output[0]
+    lane_numbers = glob_wildcards(f"annotation_smk/{wildcards.PREFIX}/evidence/split_flnc_gff3/flnc_{{lane_number}}").lane_number
+    gff = expand(rules.format_gt_flnc_gff_to_maker_gff.output, **wildcards, lane_number=lane_numbers)
+    return gff
+
+rule cat_flnc_gff:
+    input:
+        get_flnc_gff3
+    output:
+        "annotation_smk/{PREFIX}/evidence/flnc_maker.gff"
+    shell:
+        "cat {input} >> {output}"
+
+rule merge_gff:
+    input:
+        expand("annotation_smk/{PREFIX}/evidence/{sample}_maker.gff",sample=prefix_est, PREFIX=PREFIX)
     output:
         expand("annotation_smk/{PREFIX}/evidence/total_est.gff", PREFIX=PREFIX)
     shell:
@@ -333,7 +371,7 @@ rule mv:
 
 rule prep_genblast:
     input:
-        "config/alignscore.sh"
+        "alignscore.sh"
     output:
         "annotation_smk/{PREFIX}/evidence/pep/alignscore.txt"
     params:
