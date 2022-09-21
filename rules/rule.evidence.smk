@@ -18,7 +18,8 @@ elif samples_flnc != []:
     augustus_cdna="annotation_smk/{PREFIX}/evidence/flnc.fasta"
 
 localrules:
-    cat_flnc_gff
+    cat_flnc_gff,
+    mv
 
 folder_d = os.path.join(PREFIX,"*_1.fastq.gz")
 samples_d=glob.glob(folder_d)
@@ -370,8 +371,6 @@ rule mv:
         "cp {input} {output}"
 
 rule prep_genblast:
-    input:
-        "alignscore.sh"
     output:
         "annotation_smk/{PREFIX}/evidence/pep/alignscore.txt"
     params:
@@ -455,7 +454,7 @@ def get_genblast_gff(wildcards):
     gff = expand(rules.sed_gff.output, **wildcards, lane_number=lane_numbers)
     return gff
 
-rule merge_gff:
+rule merge_genblast_gff:
     input:
         get_genblast_gff
     output:
