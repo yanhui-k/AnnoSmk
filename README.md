@@ -49,7 +49,7 @@ For example, under the folder `tora`
 samplename1_1.fastq.gz  
 samplename1_2.fastq.gz
 samplename2_s.fastq.gz
-samplename3_subreads.fastq.gz
+samplename3_subreads.fasta
 ```
 
 Note: All RNA-Seq data should be stored in a folder named base name (freely named, and will be used in the command).
