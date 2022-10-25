@@ -1,4 +1,3 @@
-#!/nfs/yanhui/.conda/envs/repeat/bin/perl
 
 # fathom_to_genbank.pl
 
@@ -127,5 +126,4 @@ foreach my $seq_id (keys(%dna_seqs)) {
 	last;
     }
 }
-
 

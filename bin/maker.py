@@ -329,9 +329,9 @@ def cat_est(est_files=None):
     if ' ' in est_files:
         est_files = est_files.split()
     match_from = r"*_subreads.f*"
-    if 'isoseq' in est_files[0]:
+    if '_subreads' in est_files[0]:
         # workdir_isoseq_elumb/elumb.flcdna.pb.EuY3.leaf4.subreads.clustered.hq.fasta.gz
-        match_from = r'.*.pb.(.*).subreads.*'
+        match_from = r'(.*)_subreads.*'
     elif 'Trinity' in est_files[0]:
         # elumb.lncRNA.EuG11_1.clean.fq.gz_trinity/Trinity-GG.fasta
         match_from = "(.*).clean.*"
@@ -345,7 +345,7 @@ def cat_est(est_files=None):
             prefix = result[1]
         else:
             logging.error('Cant find prefix in {0} with pattern {1}'.format(t, match_from))
-        cmd = '{} {} | sed "s/>/>{}/;s/\//_/; s/\./_/; s/\s.*//;"'.format(cat, t, prefix)
+        cmd = '{} {} | sed "s/>/>{}_/;s/\//_/; s/\./_/; s/\s.*//;"'.format(cat, t, prefix)
         result = sh(cmd, warning='F')
         print(result)
 

@@ -8,8 +8,12 @@ def replace_list(list,a,b):
         new_list.append(new_item)
     return new_list
 
-folder_flnc = os.path.join(PREFIX,"*_subreads.fastq.gz")
+folder_flnc = os.path.join(PREFIX,"*_subreads.fasta")
 samples_flnc=glob.glob(folder_flnc)
+prefix_flnc=replace_list(samples_flnc,"_subreads.fasta","")
+prefix_flnc=replace_list(prefix_flnc,PREFIX,"")
+prefix_flnc=replace_list(prefix_flnc,"/","")
+
 if samples_flnc == []:
     prefix_est=["rnaseq"]
     augustus_cdna="annotation_smk/{PREFIX}/evidence/rnaseq.fasta"
@@ -19,7 +23,8 @@ elif samples_flnc != []:
 
 localrules:
     cat_flnc_gff,
-    mv
+    mv,
+    isolate_complex_repeats
 
 folder_d = os.path.join(PREFIX,"*_1.fastq.gz")
 samples_d=glob.glob(folder_d)
@@ -210,6 +215,8 @@ rule trinity:
         "annotation_smk/{PREFIX}/evidence/{sample}.clean.fq.gz.bam"
     output:
         "annotation_smk/{PREFIX}/evidence/{sample}.clean.fq.gz_trinity/Trinity-GG.fasta"
+    container:
+        "docker://trinityrnaseq/trinityrnaseq"
     params:
         dir="annotation_smk/{PREFIX}/evidence/{sample}.clean.fq.gz_trinity"
     threads: THREADS
@@ -236,19 +243,35 @@ rule trinity:
 
 rule cat_est_flnc:
     input:
-        expand("{flnc}",flnc=samples_flnc)
+        expand("{PREFIX}/{sample}_subreads.fasta",PREFIX=PREFIX,sample=prefix_flnc)
     output:
-        "annotation_smk/{PREFIX}/evidence/flnc.fasta"
+        expand("annotation_smk/{PREFIX}/evidence/flnc.fasta",PREFIX=PREFIX)
     shell:
-        "maker.py cat_est {input} > {output}"
+        '''
+        cat {input} |sed "s/>/>{wildcards.sample}_/;s/\//_/; s/\./_/; s/\s.*//;" > {output}
+        '''
 
 rule cat_est_rnaseq:
     input:
-        expand("annotation_smk/{PREFIX}/evidence/{sample}.clean.fq.gz_trinity/Trinity-GG.fasta", PREFIX=PREFIX, sample=prefix_all)
+        "annotation_smk/{PREFIX}/evidence/{sample}.clean.fq.gz_trinity/Trinity-GG.fasta"
+    output:
+        "annotation_smk/{PREFIX}/evidence/{sample}.fasta"
+    shell:
+        '''
+        cat {input} |sed "s/>/>{wildcards.sample}_/;s/\//_/; s/\./_/; s/\s.*//;" > {output}
+        /bin/rm -r annotation_smk/{PREFIX}/evidence/{wildcards.sample}.clean.fq.gz_trinity
+        '''
+
+
+rule merge_rnaseq:
+    input:
+        expand("annotation_smk/{PREFIX}/evidence/{sample}.fasta", PREFIX=PREFIX, sample=prefix_all)
     output:
         expand("annotation_smk/{PREFIX}/evidence/rnaseq.fasta", PREFIX=PREFIX)
     shell:
-        "maker.py cat_est {input} > {output}"
+        '''
+        cat {input} >> {output}
+        '''
 
 rule minimap2:
     input:
@@ -411,7 +434,11 @@ rule genblast:
             -x 20 -n 20 -v 2 -h 2 -j 0 -norepair -gff -cdna -pro -o {params.qry}
         done
         mv {params.qry}_*.gff {params.qry}.gff
-        mv {params.qry}_*.pro {params.qry}.pro       
+        mv {params.qry}_*.pro {params.qry}.pro   
+        /bin/rm {params.qry}*.blast
+        /bin/rm {params.qry}*.blast.report
+        /bin/rm {params.qry}_*_0
+        /bin/rm {params.qry}_*_0.DNA    
         cd -
         """
 

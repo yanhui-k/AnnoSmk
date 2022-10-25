@@ -5,10 +5,33 @@ import glob
 import os
 from configparser import ConfigParser
 
+def replace_list(list,a,b):
+    new_list = []
+    while list:
+        new_item = list.pop().replace(a,b,1)
+        new_list.append(new_item)
+    return new_list
+
+folder_flnc = os.path.join(PREFIX,"*_subreads.fastq.gz")
+samples_flnc=glob.glob(folder_flnc)
+prefix_flnc=replace_list(samples_flnc,"_subreads.fastq.gz","")
+prefix_flnc=replace_list(prefix_flnc,PREFIX,"")
+prefix_flnc=replace_list(prefix_flnc,"/","")
+
+if samples_flnc == []:
+    prefix_est=["rnaseq"]
+    augustus_cdna="annotation_smk/{PREFIX}/evidence/rnaseq.fasta"
+elif samples_flnc != []:
+    prefix_est=["rnaseq","flnc"]
+    augustus_cdna="annotation_smk/{PREFIX}/evidence/flnc.fasta"
+
 localrules:
     all,
     pre_exe,
-    merge_log
+    pre_opts,
+    merge_log,
+    fathom_to_genbank,
+    maker_gff_only
 
 rule make_fasta:
     output:
@@ -36,7 +59,15 @@ rule cp:
     shell:
         "cp {input} {output}"
 
-def prepare_opts(estgff=None, pepgff=None, rmgff=None, round=None,
+rule pre_0_opts:
+    output:
+        "annotation_smk/{PREFIX}/maker_opts_0.ctl"
+    shell:
+        '''
+        maker_opts.sh > {output}
+        '''
+
+def prepare_opts(input_opt=None, estgff=None, pepgff=None, rmgff=None, round=None,
                  snap_hmm="", augustus_species="", output_file=None):
     # find the abspath of estgff,pepgff,rmgff
     # if round=1,snap_hmm="",if round=2,R1/R1.hmm,if round=3,R2/R2.hmm
@@ -62,7 +93,7 @@ def prepare_opts(estgff=None, pepgff=None, rmgff=None, round=None,
     else:
         exit(1)
     config = ConfigParser()
-    config.read("config/maker_opts.ctl")
+    config.read(input_opt)
     estgff_dir = os.path.abspath(estgff)
     pepgff_dir = os.path.abspath(pepgff)
     rmgff_dir = os.path.abspath(rmgff)
@@ -152,6 +183,7 @@ def get_augustus_dir(wildcards):
 
 rule pre_opts:
     input:
+        input_opt = "annotation_smk/{PREFIX}/maker_opts_0.ctl",
         snap_hmm = get_hmm,
         estgff = "total_est.gff",
         pepgff = "total_pep.gff",
@@ -163,7 +195,7 @@ rule pre_opts:
     output:
         opts_file = "annotation_smk/{PREFIX}/R{round}/maker_opts{round}.ctl"
     run:
-        prepare_opts(estgff=input.estgff, pepgff=input.pepgff, 
+        prepare_opts(input_opt=input.input_opt, estgff=input.estgff, pepgff=input.pepgff, 
                     rmgff=input.rmgff, round=params.round,
                     snap_hmm=input.snap_hmm,
                     augustus_species=params.augustus_species,
@@ -353,9 +385,11 @@ rule fathom_to_genbank:
         udna="annotation_smk/{PREFIX}/R{round}/uni.dna"
     output:
         "annotation_smk/{PREFIX}/R{round}/augustus.gb"
+    params:
+        path=expand("{PATH}",PATH=PATH)
     shell:
         '''
-        fathom_to_genbank.pl --annotation_file {input.uann} --dna_file {input.udna}  --genbank_file {output} --number 500
+        perl {params.path}/bin/fathom_to_genbank.pl --annotation_file {input.uann} --dna_file {input.udna}  --genbank_file {output} --number 500
         '''
 #fathom_to_genbank.pl文件需要修改perl的路径
 
@@ -373,9 +407,11 @@ rule get_subset_of_fastas:
         udna="annotation_smk/{PREFIX}/R{round}/uni.dna"
     output:
         "annotation_smk/{PREFIX}/R{round}/genbank_gene_seqs.fasta"
+    params:
+        path=expand("{PATH}",PATH=PATH)
     shell:
         '''
-        get_subset_of_fastas.pl -l {input.txt} -f {input.udna} -o {output}
+        perl {params.path}/bin/get_subset_of_fastas.pl -l {input.txt} -f {input.udna} -o {output}
         '''
 
 # rule randomSplit:
@@ -387,6 +423,7 @@ rule get_subset_of_fastas:
 #         '''
 #         randomSplit.pl {input} 250
 #         '''
+
 
 rule autoAugA:
     input:
@@ -409,8 +446,8 @@ rule autoAugA:
         cp -r autoAug annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/.
         '''
 
-#如果有autoAug文件夹或者在/nfs/yanhui/.conda/envs/repeat/config/species下
-#有species=altra.genome.contig.fa.masked.fa_R1_direct的文件夹都会报错
+#如果有autoAug文件夹或者在/nfs/yanhui/.conda/envs/annotation/config/species下
+#有species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct的文件夹都会报错
 
 rule autoAugB:
     input:
@@ -421,7 +458,7 @@ rule autoAugB:
     threads: THREADS
     shell:
         '''
-        autoAug.pl --cpus={threads} --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct \
+        autoAug.pl --species={wildcards.PREFIX}.genome.contig.fa.masked.fa_R{wildcards.round}_direct \
         --genome={input.fasta} --useexisting --hints={input.gff} \
         -v -v -v  --index=1
         cd autoAug/autoAugPred_hints/shells/
@@ -442,8 +479,7 @@ rule busco:
         directory("annotation_smk/{PREFIX}/R{round}/total.all.maker.proteins.fasta.busco.embryophyta")
     params:
         dir_busco="total.all.maker.proteins.fasta.busco.embryophyta"
-    conda:
-        "../config/busco.yaml"
+    container:"docker://ezlabgva/busco:v5.4.3_cv1"
     shell:
         """
         cd annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/
@@ -458,9 +494,22 @@ rule AED:
         "AED_cdf_generator.pl -b 0.025 {input} > {output}"
 
 
-rule maker_gff:
+rule maker_gff_only:
     input:
         expand(rules.gff3_merge.output.all_gff,PREFIX=PREFIX, round=3)
+    output:
+        gff=expand("annotation_smk/{PREFIX}/maker_gff_only.gff",PREFIX=PREFIX),
+        fasta=expand("annotation_smk/{PREFIX}/maker_fasta_only.fa",PREFIX=PREFIX)
+    shell:
+        """
+        awk -v line=$(awk '/##FASTA/{{print NR}}' {input}) '{{if(NR<line){{print $0}}}}' {input} > {output.gff}
+        awk -v line=$(awk '/##FASTA/{{print NR}}' {input}) '{{if(NR>line){{print $0}}}}' {input} > {output.fasta}
+        """
+
+
+rule format_maker_gff:
+    input:
+        expand(rules.maker_gff_only.output.gff,PREFIX=PREFIX, round=3)
     output:
         expand("annotation_smk/{PREFIX}.gff",PREFIX=PREFIX)
     shell:

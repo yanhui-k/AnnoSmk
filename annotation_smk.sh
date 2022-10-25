@@ -58,6 +58,7 @@ done
    
 time1=$(date "+%Y%m%d") 
 pwd1=$(dirname $(readlink -f "$0"))  
+export PERL5LIB=$PERL5LIB:/nfs/yanhui/bin/annotation_smk/bin
     
 if [ ! -f "$ref" ]; then
     echo "genome file is not exist"
@@ -77,7 +78,8 @@ if [[ ! -d "annotation_smk" ]]; then
     mkdir annotation_smk
 fi
 
-echo "PREFIX: $prefix" > annotation_smk/config.yaml
+echo "PATH: "$pwd1 > annotation_smk/config.yaml
+echo "PREFIX: $prefix" >> annotation_smk/config.yaml
 echo "REF: $ref" >> annotation_smk/config.yaml
 echo "PEP: $pep" >> annotation_smk/config.yaml
 echo "THREADS: $core" >> annotation_smk/config.yaml
@@ -86,6 +88,7 @@ echo '''configfile:"annotation_smk/config.yaml"
 
 import os
 
+PATH=config["PATH"]
 PREFIX=config["PREFIX"]
 REF=config["REF"]
 PEP=config["PEP"]
@@ -122,21 +125,21 @@ rule all:
 ''' > annotation_smk/annotation.py
 
 if [ ! "$cluster" ]; then
-    nohup snakemake -s annotation_smk/annotation.py -c"$core" -p --use-conda > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
+    nohup snakemake -s annotation_smk/annotation.py -c"$core" -p --use-singularity --latency-wait 60 > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
 fi
 
 if [ "$cluster" == "bsub" ]; then
     if [[ ! -d 'annotation_smk/log_'$prefix'_'$time1 ]];then
         mkdir annotation_smk/log_"$prefix"_"$time1"
     fi
-    nohup snakemake -s annotation_smk/annotation.py --cluster "bsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$queue" -m "$hosts" -n {threads}" -j "$core" -p --use-conda > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
+    nohup snakemake -s annotation_smk/annotation.py --cluster "bsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$queue" -m "$hosts" -n {threads}" -j "$core" -p --use-singularity --latency-wait 60 > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
 fi
 
 if [ "$cluster" == "qsub" ]; then
     if [[ ! -d 'annotation_smk/log_'$prefix"_"$time1 ]];then
         mkdir annotation_smk/log_"$prefix"_"$time1"
     fi
-    nohup snakemake -s annotation_smk/annotation.py --cluster "qsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$hosts" {threads}" -j "$core" -p --use-conda > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
+    nohup snakemake -s annotation_smk/annotation.py --cluster "qsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$hosts" {threads}" -j "$core" -p  --use-singularity --latency-wait 60 > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
 fi
 
 #nohup snakemake -s annotation_smk/annotation.py --cluster "bsub -o log_"$prefix"_"$time1"/output.{rulename} -e log_"$prefix"_"$time1"/error.{rulename} -q Q104C512G_X4 -m yi02 -n {threads}" -j "$core" -p --use-conda &  

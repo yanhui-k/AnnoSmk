@@ -1,4 +1,4 @@
-#!/nfs/yanhui/.conda/envs/repeat/bin/perl
+
 
 # get_subset_of_fastas.pl
 
