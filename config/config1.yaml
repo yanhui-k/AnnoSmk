@@ -1,4 +1,0 @@
-PREFIX: tair1
-REF: tair/tair_genome.fa
-PEP: tair/proevidence.fasta
-THREADS: 30
