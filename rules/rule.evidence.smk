@@ -207,7 +207,7 @@ rule hisat2_s:
         "annotation_smk/{PREFIX}/evidence/{sample}_s.clean.fq.gz.bam"
     threads: THREADS
     shell:
-        "hisat2 --rna-strandness RF --mp 3,1 -p 30 -x tair -U {input.r1} | samtools sort -@ 30 -o {output}"
+        "hisat2 --rna-strandness RF --mp 3,1 -p 30 -x {params.index} -U {input.r1} | samtools sort -@ 30 -o {output}"
 
 
 rule trinity:
