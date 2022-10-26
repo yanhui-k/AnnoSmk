@@ -232,7 +232,7 @@ rule run_maker:
         THREADS
     shell:
         '''
-        maker -c {threads} -genome {input.g} {input.opts} {input.bopts} {input.exe}
+        maker -c {threads} -genome {input.g} {input.opts} {input.bopts} {input.exe} -fix_nucleotides
         wait
         cp -rf {wildcards.lane_number}.maker.output annotation_smk/{wildcards.PREFIX}/R{wildcards.round}/
         rm -rf {wildcards.lane_number}.maker.output

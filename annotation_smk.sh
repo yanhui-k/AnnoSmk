@@ -14,7 +14,7 @@ Usage:
     -h,--help		Prints this usage statement.
     -V,--version	Prints the annotation_smk version.
 EXECUTION:
-    -c,--core		Specifies the number of cores for the task
+    -c,--core		Specifies the number of cores for the task.
     -b,--base		Set the base name annotation_smk uses to save output files.
       			At the same time, you need to create a folder with the same name to store the RNA-seq evidence.
     -g,--genome	Set the genome file path.
@@ -125,21 +125,21 @@ rule all:
 ''' > annotation_smk/annotation.py
 
 if [ ! "$cluster" ]; then
-    nohup snakemake -s annotation_smk/annotation.py -c"$core" -p --use-singularity --latency-wait 60 > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
+    nohup snakemake -s annotation_smk/annotation.py -c2 -p --use-singularity --latency-wait 60 > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
 fi
 
 if [ "$cluster" == "bsub" ]; then
     if [[ ! -d 'annotation_smk/log_'$prefix'_'$time1 ]];then
         mkdir annotation_smk/log_"$prefix"_"$time1"
     fi
-    nohup snakemake -s annotation_smk/annotation.py --cluster "bsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$queue" -m "$hosts" -n {threads}" -j "$core" -p --use-singularity --latency-wait 60 > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
+    nohup snakemake -s annotation_smk/annotation.py --cluster "bsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$queue" -m "$hosts" -n {threads}" -j 2 -p --use-singularity --latency-wait 60 > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
 fi
 
 if [ "$cluster" == "qsub" ]; then
     if [[ ! -d 'annotation_smk/log_'$prefix"_"$time1 ]];then
         mkdir annotation_smk/log_"$prefix"_"$time1"
     fi
-    nohup snakemake -s annotation_smk/annotation.py --cluster "qsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$hosts" {threads}" -j "$core" -p  --use-singularity --latency-wait 60 > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
+    nohup snakemake -s annotation_smk/annotation.py --cluster "qsub -o annotation_smk/log_"$prefix"_"$time1"/output.{rulename} -e annotation_smk/log_"$prefix"_"$time1"/error.{rulename} -q "$hosts" {threads}" -j 2 -p  --use-singularity --latency-wait 60 > annotation_smk/log_"$prefix"_"$time1".log 2>&1 &
 fi
 
 #nohup snakemake -s annotation_smk/annotation.py --cluster "bsub -o log_"$prefix"_"$time1"/output.{rulename} -e log_"$prefix"_"$time1"/error.{rulename} -q Q104C512G_X4 -m yi02 -n {threads}" -j "$core" -p --use-conda &  
