@@ -44,7 +44,6 @@ dependencies:
   - chardet=4.0.0=py36h5fab9bb_1
   - charset-normalizer=2.0.0=pyhd8ed1ab_0
   - coincbc=2.10.5=hcee13e7_1
-  - collectl=4.0.4=2
   - colorama=0.4.4=pyh9f0ad1d_0
   - conda-package-handling=1.7.3=py36h8f6f2f9_0
   - configargparse=1.5.3=pyhd8ed1ab_0
@@ -61,7 +60,6 @@ dependencies:
   - evidencemodeler=1.1.1=hdfd78af_3
   - exonerate=2.4.0=h7c8e0dd_4
   - expat=2.4.1=h9c3ff4c_0
-  - fastool=0.1.4=h5bf99c6_5
   - fastp=0.12.4=0
   - fftw=3.3.10=nompi_h74d3f13_101
   - filechunkio=1.8=py36_1
@@ -119,10 +117,7 @@ dependencies:
   - infernal=1.1.4=h779adbc_0
   - iniconfig=1.1.1=pyh9f0ad1d_0
   - ipython_genutils=0.2.0=py36_0
-  - java-jdk=7.0.91=1
   - jbig=2.1=h7f98852_2003
-  - jellyfish=2.2.10=h6bb024c_1
-  - jemalloc=4.5.0=0
   - jinja2=3.0.2=pyhd8ed1ab_0
   - jmespath=0.10.0=pyh9f0ad1d_0
   - jpeg=9d=h36c2ea0_0
@@ -196,13 +191,11 @@ dependencies:
   - numpy=1.19.5=py36hfc0c790_2
   - oauth2client=4.1.3=py_0
   - olefile=0.46=pyh9f0ad1d_1
-  - openjdk=8.0.152=h7b6447c_3
   - openjpeg=2.4.0=hb52868f_1
   - openssl=1.1.1q=h7f8727e_0
   - packaging=21.0=pyhd8ed1ab_0
   - pandas=1.1.5=py36h284efc9_0
   - pango=1.42.4=h69149e4_5
-  - parafly=r2013_01_21=1
   - paramiko=2.8.0=pyhd8ed1ab_0
   - pcre=8.45=h9c3ff4c_0
   - peppy=0.31.1=pyhd8ed1ab_0
@@ -400,7 +393,6 @@ dependencies:
   - perl-text-abbrev=1.02=pl526_0
   - perl-text-parsewords=3.30=pl526_0
   - perl-text-soundex=3.05=pl526_1000
-  - perl-threaded=5.32.1=hdfd78af_1
   - perl-tie-ixhash=1.23=pl526_2
   - perl-time-hires=1.9760=pl526h14c3975_1
   - perl-time-local=1.28=pl526_1
@@ -485,7 +477,6 @@ dependencies:
   - simplejson=3.17.5=py36h8f6f2f9_0
   - six=1.16.0=pyh6c4a22f_0
   - slacker=0.14.0=py_0
-  - slclust=02022010=2
   - smart_open=5.2.1=pyhd8ed1ab_0
   - smmap=3.0.5=pyh44b312d_0
   - snakemake=6.9.1=hdfd78af_0
@@ -509,8 +500,6 @@ dependencies:
   - tqdm=4.62.1=pyhd8ed1ab_0
   - traitlets=4.3.3=py36h9f0ad1d_1
   - trf=4.09.1=h516909a_0
-  - trimmomatic=0.39=hdfd78af_2
-  - trinity=2.1.1=6
   - trnascan-se=2.0.9=pl5262h779adbc_1
   - typing-extensions=3.10.0.2=hd8ed1ab_0
   - typing_extensions=3.10.0.2=pyha770c72_0
@@ -545,4 +534,3 @@ dependencies:
   - zipp=3.6.0=pyhd8ed1ab_0
   - zlib=1.2.11=h516909a_1010
   - zstd=1.5.0=ha95c52a_0
-
