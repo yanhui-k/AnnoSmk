@@ -14,10 +14,10 @@ prefix_flnc=replace_list(samples_flnc,"_subreads.fasta","")
 prefix_flnc=replace_list(prefix_flnc,PREFIX,"")
 prefix_flnc=replace_list(prefix_flnc,"/","")
 
-if samples_flnc == []:
+if prefix_flnc == []:
     prefix_est=["rnaseq"]
     augustus_cdna="annotation_smk/{PREFIX}/evidence/rnaseq.fasta"
-elif samples_flnc != []:
+elif prefix_flnc != []:
     prefix_est=["rnaseq","flnc"]
     augustus_cdna="annotation_smk/{PREFIX}/evidence/flnc.fasta"
 
@@ -166,7 +166,7 @@ rule hisat2build:
         '''
         
 
-rule fastp:
+rule fastp_d:
     input:
         r1 = "{PREFIX}/{sample}_1.fastq.gz",
         r2 = "{PREFIX}/{sample}_2.fastq.gz"
@@ -176,7 +176,7 @@ rule fastp:
     shell:
         "fastp -i {input.r1} -I {input.r2} -o {output.r1} -O {output.r2}"
 
-rule hisat2:
+rule hisat2_d:
     input:
         r1="annotation_smk/{PREFIX}/evidence/{sample}_1.clean.fq.gz",
         r2="annotation_smk/{PREFIX}/evidence/{sample}_2.clean.fq.gz",
@@ -207,18 +207,17 @@ rule hisat2_s:
         "annotation_smk/{PREFIX}/evidence/{sample}_s.clean.fq.gz.bam"
     threads: THREADS
     shell:
-        "hisat2 --rna-strandness RF --mp 3,1 -p 30 -x {params.index} -U {input.r1} | samtools sort -@ 30 -o {output}"
+        "hisat2 --rna-strandness RF --mp 3,1 -p 30 -x {params.index} -U {input.r1} | samtools sort -@ {threads} -o {output}"
 
-
-rule trinity:
+rule trinity_d:
     input:
-        "annotation_smk/{PREFIX}/evidence/{sample}.clean.fq.gz.bam"
+        "annotation_smk/{PREFIX}/evidence/{sample}_d.clean.fq.gz.bam"
     output:
-        "annotation_smk/{PREFIX}/evidence/{sample}.clean.fq.gz_trinity/Trinity-GG.fasta"
+        "annotation_smk/{PREFIX}/evidence/{sample}_d.clean.fq.gz_trinity/Trinity-GG.fasta"
     container:
         "docker://trinityrnaseq/trinityrnaseq"
     params:
-        dir="annotation_smk/{PREFIX}/evidence/{sample}.clean.fq.gz_trinity"
+        dir="annotation_smk/{PREFIX}/evidence/{sample}_d.clean.fq.gz_trinity"
     threads: THREADS
     shell:
         '''
@@ -228,6 +227,26 @@ rule trinity:
           --max_memory 20G --CPU {threads} \
           --output {params.dir}
         '''
+
+rule trinity_s:
+    input:
+        "annotation_smk/{PREFIX}/evidence/{sample}_s.clean.fq.gz.bam"
+    output:
+        "annotation_smk/{PREFIX}/evidence/{sample}_s.clean.fq.gz_trinity/Trinity-GG.fasta"
+    container:
+        "docker://trinityrnaseq/trinityrnaseq"
+    params:
+        dir="annotation_smk/{PREFIX}/evidence/{sample}_s.clean.fq.gz_trinity"
+    threads: THREADS
+    shell:
+        '''
+        Trinity --SS_lib_type F \
+          --genome_guided_bam {input} \
+          --genome_guided_max_intron 15000 \
+          --max_memory 20G --CPU {threads} \
+          --output {params.dir}
+        '''
+
 #
 #def get_bam1(wildcards):
 #    samples_2=glob.glob("*_s.fastq.gz")
@@ -241,15 +260,23 @@ rule trinity:
 #    bam2 = expand(rules.hisat2.output, sample=samples_2)
 #    return bam2
 
-rule cat_est_flnc:
+rule mod_est_flnc:
     input:
-        expand("{PREFIX}/{sample}_subreads.fasta",PREFIX=PREFIX,sample=prefix_flnc)
+        "{PREFIX}/{sample}_subreads.fasta"
     output:
-        expand("annotation_smk/{PREFIX}/evidence/flnc.fasta",PREFIX=PREFIX)
+        "annotation_smk/{PREFIX}/evidence/{sample}_subreads.fasta"
     shell:
         '''
         cat {input} |sed "s/>/>{wildcards.sample}_/;s/\//_/; s/\./_/; s/\s.*//;" > {output}
         '''
+
+rule cat_est_flnc:
+    input:
+        expand("annotation_smk/{PREFIX}/evidence/{sample}_subreads.fasta",PREFIX=PREFIX,sample=prefix_flnc)
+    output:
+        expand("annotation_smk/{PREFIX}/evidence/flnc.fasta",PREFIX=PREFIX)
+    shell:
+        "cat {input} >> {output}"
 
 rule cat_est_rnaseq:
     input:

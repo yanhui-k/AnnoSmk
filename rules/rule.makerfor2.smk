@@ -12,16 +12,16 @@ def replace_list(list,a,b):
         new_list.append(new_item)
     return new_list
 
-folder_flnc = os.path.join(PREFIX,"*_subreads.fastq.gz")
+folder_flnc = os.path.join(PREFIX,"*_subreads.fasta")
 samples_flnc=glob.glob(folder_flnc)
-prefix_flnc=replace_list(samples_flnc,"_subreads.fastq.gz","")
+prefix_flnc=replace_list(samples_flnc,"_subreads.fasta","")
 prefix_flnc=replace_list(prefix_flnc,PREFIX,"")
 prefix_flnc=replace_list(prefix_flnc,"/","")
 
-if samples_flnc == []:
+if prefix_flnc == []:
     prefix_est=["rnaseq"]
     augustus_cdna="annotation_smk/{PREFIX}/evidence/rnaseq.fasta"
-elif samples_flnc != []:
+elif prefix_flnc != []:
     prefix_est=["rnaseq","flnc"]
     augustus_cdna="annotation_smk/{PREFIX}/evidence/flnc.fasta"
 
