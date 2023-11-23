@@ -1,4 +1,4 @@
- ![](images/logo.png#crop=0&crop=0&crop=1&crop=1&id=Oiact&originalType=binary&ratio=1&rotation=0&showTitle=false&status=done&style=none&title=&width=700) 
+ ![](images/logo.png#crop=0&crop=0&crop=1&crop=1&id=Oiact&originalType=binary&ratio=1&rotation=0&showTitle=false&status=done&style=none&title=&width=400) 
 
 annotation_smk is a simple process of genome structure annotation, which can be parallelized and automated. 
 
