@@ -1,4 +1,4 @@
- <img src="images/logo.png" width="50%">
+ <img src="images/logo.png" width="10%">
 
 annotation_smk is a simple process of genome structure annotation, which can be parallelized and automated. 
 
