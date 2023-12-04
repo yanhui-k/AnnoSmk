@@ -2,7 +2,7 @@
  <img src="images/logo.png" width="30%">
 </div>
 
-annotation_smk is a simple process of genome structure annotation, which can be parallelized and automated. 
+AnnoSmk is a simple process of genome structure annotation, which can be parallelized and automated. 
 
 <img src="images/pipeline.png" width="70%">
 
@@ -15,24 +15,24 @@ Conda can be downloaded as part of the [Anaconda](https://www.anaconda.com/) or 
 ## Install
 
 ```bash
-$ git clone https://github.com/yanhui-k/annotation_smk.git
+$ git clone https://github.com/yanhui-k/AnnoSmk.git
 ```
 
 ## Getting Started
 
-It is important to make annotation_smk executable by typing `chmod a+x /path/to/annotation_smk`and 
+It is important to make AnnoSmk executable by typing `chmod a+x /path/to/AnnoSmk`and 
 add it to you `$PATH` environment：
 
 ```python
-chmod a+x /path/to/annotation_smk
-export PATH=/path/to/annotation_smk/:/path/to/annotation_smk/bin:$PATH
+chmod a+x /path/to/AnnoSmk
+export PATH=/path/to/AnnoSmk/:/path/to/AnnoSmk/bin:$PATH
 ```
 
 You can use the accompanying `config/environment.yaml` to creat a general conda envirment and use `config/requirements.txt` to download the necessary python packages.
 
 ```bash
-$ mamba env create -f /path/to/annotation/config/environment.yaml
-$ pip install -r /path/to/annotation/config/requirements.txt
+$ mamba env create -f /path/to/AnnoSmk/config/environment.yaml
+$ pip install -r /path/to/AnnoSmk/config/requirements.txt
 ```
 
 This will create a conda environment containing all dependencies for Snakemake itself.
@@ -62,11 +62,11 @@ samplename3_subreads.fasta
 
 Note: All RNA-Seq data should be stored in a folder named base name (freely named, and will be used in the command).
 
-The FASTA of protein evidence is also required to improve annotation accuracy. You can download homologous protein sequence from the website [uniprot](https://www.uniprot.org/), and merge them into a FASTA format file and provide it to annotation_smk. 
+The FASTA of protein evidence is also required to improve annotation accuracy. You can download homologous protein sequence from the website [uniprot](https://www.uniprot.org/), and merge them into a FASTA format file and provide it to AnnoSmk. 
 
-### Running annotation with the "annotation_smk.sh" script
+### Running AnnoSmk
 
-Frist, you need to add executable permission to the "annotation_smk.sh" script and activate the snakemake environment:
+Frist, you need to add executable permission to the "AnnoSmk" script and activate the snakemake environment:
 
 ```bash
 $ conda activate annotation
@@ -75,28 +75,32 @@ $ conda activate annotation
 Then you can start the pipeline by typing in the following commands into your terminal emulator:
 
 ```bash
-$ annotation.sh -c <core> -b <base> -g <genome> -p <protein>
+$ AnnoSmk -c <CORE> -b <PREFIX> -g <REF> -p <PEP>
 ```
 
 For example, gene annotation for _tora/tora.fa_, there is homologous protein evidence _arath_med_sprot.pep_ and RNA-Seq evidence stored in the _tora_ folder, if you want to use 10 cores,  you can use the following  order:
 
 ```bash
-$ annotation.sh -c 10 -b tora -g tora/tora.fa -p tora/arath_med_sprot.pep
+$ AnnoSmk -c 10 -b tora -g tora/tora.fa -p tora/arath_med_sprot.pep
 ```
 
 Do not start the input file with ./, this is redundant and strongly discouraged. You can simply omit the './' for relative file paths.
 
-annotation_smk can make use of **cluster** engines that support shell scripts and have access to a common filesystem, (e.g. LSF). In this case, you can uuse the following order to run annotation_smk:
+AnnoSmk can make use of **cluster** engines that support shell scripts and have access to a common filesystem, (e.g. LSF). In this case, you can uuse the following order to run AnnoSmk:
 
 ```bash
-$ annotation.sh -c <core> -b <base> -g <genome> -p <protein> --cluster <cluster> -q <queue> -m <host>
+$ AnnoSmk -c <core> -b <base> -g <genome> -p <protein> --cluster <cluster> -q <queue> -m <host>
 ```
 You can use the following order to submit the above example to the cluster with bsub for execution:
 ```bash
-$ annotation_smk.sh -c 10 -b tora -g tora/tora.fa -p tora/arath_med_sprot.pep --cluster bsub -q Q104C512G_X4 -m yi02
+$ AnnoSmk -c 10 -b tora -g tora/tora.fa -p tora/arath_med_sprot.pep --cluster bsub -q Q104C512G_X4 -m yi02
+```
+You can use the following order to submit the above example to the cluster with sbatch for execution:
+```bash
+$ AnnoSmk -c 10 -b tair -g ~/test_annotation_smk/test/TAIR10_chr_all.fas -p tair/Tracheophyta_uniprot_odb10.fa --cluster sbatch -q kshctest
 ```
 
-### Running annotation_smk manuall
+### Running AnnoSmk manuall
 
 You have to start by activating the snakemake environment:
 
@@ -111,6 +115,12 @@ $ vim config/config.yaml
 ```
 
 Modify the value of PREFIX to the base name, modify the value of REF to the indirect path of the genome file, modify the value of PEP to the indirect path of the homologous protein evidence, and then save the file.
+
+Use the following code to modify the steps that you want to take
+
+```bash
+$ vim /path/to/AnnoSmk/config/parameter.yaml
+```
 
 To start the main pipeline, type in: 
 
