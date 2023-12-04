@@ -1,0 +1,207 @@
+#!/bin/bash
+
+#helpdoc
+helpdoc(){
+    cat <<EOF
+    
+AnnoSmk
+
+Usage:
+	AnnoSmk -c CORE -b PREFIX -g REF -p PEP
+	AnnoSmk -c CORE -b PREFIX -g REF -p PEP --cluster CLUSTER -q QUEUE -m HOST
+	AnnoSmk -c CORE -b PREFIX -g REF -p PEP --download TXT --cluster CLUSTER -q QUEUE -m HOST
+
+Description:
+    AnnoSmk is a program that generates gene annotations in GFF3 format 
+    using evidence such as long-read and short-read RNA-seq and protein homology.
+
+Options:
+IMFORMATION:
+    -h,--help		Prints this usage statement.
+    -V,--version	Prints the AnnoSmk version.
+EXECUTION:
+    -c,--core		Specifies the number of cores for the task.(default: 1)
+    -b,--base		Set the base name AnnoSmk uses to store input transcriptome evidence, store the intermediate files and name the output files.
+      			Another way of saying, you need to create the <base> folder to store the RNA-seq evidence, 
+      			then AnnoSmk will create the AnnoSmk/<base> to store intermediate file and the result file of gene annotation will be AnnoSmk/<base>.gff .
+      			If you want to use the include local transcriptomic evidence, you can store them under the <base> folder.
+    -g,--genome	Set the genome file path.
+    -p,--protein	Set the homologous protein evidence file path.
+
+CLUSTER:
+    --cluster		Set the submit command, e.g.bsub or sbatch.(default: None)
+    -q			Set the queue name for job submit.(default: None)
+    -m			set the host name for job submit.(default: None)
+
+DOWNLOAD_SRA
+    --download		the txt file with containing the SRA IDs of transcriptome data. AnnoSmk will download them from NCBI.
+    				(default: only use the local transcriptome data)
+
+Example:
+	AnnoSmk -c 10 -b tora -g tora/tora.fa -p tora/arath_med_sprot.pep
+	AnnoSmk -c 10 -b tora -g tora/tora.fa -p tora/arath_med_sprot.pep --cluster bsub -q Q104C512G_X4 -m yi02
+	AnnoSmk -c 10 -b tora -g tora/tora.fa -p tora/arath_med_sprot.pep --download tora/download.txt --cluster bsub -q Q104C512G_X4 -m yi02
+	AnnoSmk -c 10 -b tair -g ~/test_annotation_smk/test/TAIR10_chr_all.fas -p tair/Tracheophyta_uniprot_odb10.fa --cluster sbatch -q kshctest
+	
+EOF
+}
+
+getopt -T &>/dev/null;[ $? -ne 4 ] && { echo "not enhanced version";exit 1; }
+parameters=`getopt -o c:b:g:p:q:m:hv --long core:,base:,genome:,protein:,download:,cluster:,help,version -n "$0" -- "$@"`
+[ $? -ne 0 ] && { echo "Try '$0 --help' for more information."; exit 1; }
+eval set -- "$parameters"
+
+while true;do
+    case "$1" in
+        -h|--help) helpdoc; exit ;;
+        -V|--version) echo "$0 version V1.1"; exit ;;
+        -c|--core) core="$2"; shift ;;
+        -b|--base) prefix="$2"; shift ;;
+        -g|--genome) ref="$2"; shift ;;
+        -p|--protein) pep="$2"; shift ;;
+        --download) download_file="$2"; shift;;
+        --cluster) cluster="$2"; shift ;;
+        -q) queue="$2"; shift ;;
+        -m) hosts="$2"; shift ;;
+        --)
+            shift
+            break ;;
+        *) helpdoc; exit ;;
+    esac
+    shift
+done 
+
+
+time1=$(date "+%Y%m%d") 
+# where is AnnoSmk
+pwd1=$(dirname $(readlink -f "$0"))  
+export PERL5LIB=$PERL5LIB:$pwd1/bin
+
+if  [ ! "$prefix" ]; then
+    echo -e "plase set the base parameter\n" 
+    helpdoc;
+    exit 1
+fi
+    
+if [ ! -f "$ref" ]; then
+    echo -e "genome file is not exist\n"
+    helpdoc;
+    exit 1    
+fi
+
+if [ ! -f "$pep" ]; then
+    echo -e "protein evidence file is not exist\n"
+    helpdoc;
+    exit 1
+fi
+
+if [ -z "$core" ]; then
+    core=1
+fi
+
+if [[ ! -d "AnnoSmk" ]]; then
+    mkdir AnnoSmk
+fi
+
+echo "TIME: $time1" > AnnoSmk/config.yaml
+echo "PATH: "$pwd1 >> AnnoSmk/config.yaml
+echo "PREFIX: $prefix" >> AnnoSmk/config.yaml
+echo "REF: $ref" >> AnnoSmk/config.yaml
+echo "PEP: $pep" >> AnnoSmk/config.yaml
+echo "THREADS: $core" >> AnnoSmk/config.yaml
+
+if [ "$download_file" ];then
+    if [[ ! -f "$download_file" ]];then
+        echo "download sraid file is not exist"
+        echo "plase check"
+    else
+        echo "DOWNLOAD_SRAID:" >> AnnoSmk/config.yaml
+        awk '{print $1}' $download_file | while read line
+        do
+            echo ' - "'$line'"' >> AnnoSmk/config.yaml
+        done
+        echo "TRAN:" >> AnnoSmk/config.yaml
+        #get RNA list from $download_file file
+        awk '{sub(" ","_")}{print $0}' $download_file | while read line
+        do
+            echo ' - "AnnoSmk/'$prefix'/evidence/'$line'.fasta"' >> AnnoSmk/config.yaml
+        done
+    fi
+else
+    echo "\nnot download_file parameter\n" >  AnnoSmk/download.log
+    echo "DOWNLOAD_SRAID:  " >> AnnoSmk/config.yaml
+    echo "TRAN:" >> AnnoSmk/config.yaml
+fi
+
+#get RNA list from $prefix floder
+get_local_rna.py $prefix AnnoSmk/config.yaml
+
+echo '''configfile: "AnnoSmk/config.yaml"
+configfile: "'''$pwd1'''/config/parameter.yaml"
+
+import os
+
+PATH=config["PATH"]
+PREFIX=config["PREFIX"]
+REF=config["REF"]
+PEP=config["PEP"]
+THREADS=int(config["THREADS"])
+
+include:"'''$pwd1'''/rules/all.smk"
+
+if config["split_genome_by_Ns"]:
+    include:"'''$pwd1'''/rules/rule.split.smk"
+else:
+    include:"'''$pwd1'''/rules/rule.cp_genome.smk"
+
+include:"'''$pwd1'''/rules/rule.download.smk"
+
+if config["repeat_gff"]:
+    include:"'''$pwd1'''/rules/rule.repeat.all.smk"
+
+if config["total_est_gff"]:
+    include:"'''$pwd1'''/rules/rule.evidence.all.smk"
+if config["total_pep_gff"]:
+    include:"'''$pwd1'''/rules/rule.pep.all.smk"
+
+include:"'''$pwd1'''/rules/rule.makerfor2.all.smk"
+
+wildcard_constraints:
+    PREFIX=PREFIX
+
+rule all:
+    input:
+        get_output()
+''' > AnnoSmk/annotation.py
+
+#conda activate annotation
+
+if [ ! "$cluster" ]; then
+    nohup snakemake -s AnnoSmk/annotation.py -c"$core" -p --use-singularity --latency-wait 60 --restart-times 5 --rerun-incomplete > AnnoSmk/log_"$prefix"_"$time1".log 2>&1 &
+    
+elif [ "$cluster" == "bsub" ]; then
+    if [[ ! -d 'AnnoSmk/log_'$prefix'_'$time1 ]];then
+        mkdir AnnoSmk/log_"$prefix"_"$time1"
+    fi
+    if [ "$hosts" == "" ];then
+        nohup snakemake -s AnnoSmk/annotation.py --cluster "bsub -o AnnoSmk/log_"$prefix"_"$time1"/output.{rulename} -e AnnoSmk/log_"$prefix"_"$time1"/error.{rulename} -q "$queue" -n {threads}" -j 5 -p --use-singularity --latency-wait 60 --restart-times 5 --rerun-incomplete > AnnoSmk/log_"$prefix"_"$time1".log 2>&1 &
+    else
+        nohup snakemake -s AnnoSmk/annotation.py --cluster "bsub -o AnnoSmk/log_"$prefix"_"$time1"/output.{rulename} -e AnnoSmk/log_"$prefix"_"$time1"/error.{rulename} -q "$queue" -m "$hosts" -n {threads}" -j 5 -p --use-singularity --latency-wait 60 --restart-times 5 --rerun-incomplete > AnnoSmk/log_"$prefix"_"$time1".log 2>&1 &
+    fi
+elif [ "$cluster" == "sbatch" ];then
+    if [[ ! -d 'AnnoSmk/log_'$prefix'_'$time1 ]];then
+    mkdir AnnoSmk/log_"$prefix"_"$time1"
+    fi
+    nohup snakemake -s AnnoSmk/annotation.py --cluster "sbatch -c {threads} -p "$queue" -o AnnoSmk/log_"$prefix"_"$time1"/output.{rulename}  -e AnnoSmk/log_"$prefix"_"$time1"/error.{rulename}" -j 5 -p --use-singularity --latency-wait 60 --restart-times 5 --rerun-incomplete > AnnoSmk/log_"$prefix"_"$time1".log 2>&1 &
+else
+    echo -e '\nERROR: AnnoSmk currently only supports submitting to LSF\n'
+    helpdoc
+    exit 1
+#elif [ "$cluster" == "qsub" ]; then
+#    if [[ ! -d 'AnnoSmk/log_'$prefix"_"$time1 ]];then
+#        mkdir AnnoSmk/log_"$prefix"_"$time1"
+#    fi
+#    nohup snakemake -s AnnoSmk/annotation.py --cluster "qsub -o AnnoSmk/log_"$prefix"_"$time1"/output.{rulename} -e AnnoSmk/log_"$prefix"_"$time1"/error.{rulename} -q "$hosts" {threads}" -j 2 -p  --use-singularity --keep-going --latency-wait 60 --restart-times 3 > AnnoSmk/log_"$prefix"_"$time1".log 2>&1 &
+fi
+
+#nohup snakemake -s AnnoSmk/annotation.py --cluster "bsub -o log_"$prefix"_"$time1"/output.{rulename} -e log_"$prefix"_"$time1"/error.{rulename} -q Q104C512G_X4 -m yi02 -n {threads}" -j "$core" -p --use-conda &  
