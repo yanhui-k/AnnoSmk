@@ -1,4 +1,5 @@
 #!/usr/bin/perl -w
+# download from https://github.com/mscampbell/Genome_annotation
 use strict;
 use FileHandle;
 use Getopt::Std;

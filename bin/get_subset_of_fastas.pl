@@ -1,5 +1,5 @@
-
-
+#!/usr/bin/perl -w
+# download from https://github.com/Childs-Lab/GC_specific_MAKER
 # get_subset_of_fastas.pl
 
 # 22 November 2008

@@ -1,4 +1,5 @@
-
+#!/usr/bin/perl -w
+# download from https://github.com/Childs-Lab/GC_specific_MAKER
 # fathom_to_genbank.pl
 
 # Kevin Childs

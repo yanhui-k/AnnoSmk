@@ -1,4 +1,5 @@
 #!/usr/bin/perl -w
+# download from https://github.com/rmhubley/RepeatMasker
 ##---------------------------------------------------------------------------##
 ##  File:
 ##      @(#) rmOutToGFF3.pl

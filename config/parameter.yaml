@@ -1,4 +1,4 @@
-split_genome_by_Ns: False #Set to True if you want to split genome by Ns to speed AnnoSmk up, False if you don't want
+split_genome_by_Ns: True #Set to True if you want to split genome by Ns to speed AnnoSmk up, False if you don't want
 repeat_gff: True #Set to True if you want AnnoSmk to execute RepeatMasker module, set False if you want AnnoSmk to use an existing repeat.gff file (you need to store the repeat.gff file in the execution path)
 total_est_gff: True #Set to True if you want AnnoSmk to execute transcriptome alignment module, set False if you want AnnoSmk to use an existing total_est.gff file [you need to store the total_est.gff and rnaseq.fasta(if your transcriptome evidence is only second-generation sequencing data) or flnc.fasta(if your transcriptome evidence contains the latest third-generation sequencing data) file in the execution path]
 total_pep_gff: True #Set to True if you want AnnoSmk to execute protein alignment steps, set False if you want AnnoSmk to use an existing total_pep.gff file (you need to store the total_pep.gff file in the execution path)
