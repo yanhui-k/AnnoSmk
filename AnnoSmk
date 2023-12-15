@@ -104,6 +104,7 @@ if [[ ! -d "AnnoSmk" ]]; then
 fi
 
 echo "TIME: $time1" > AnnoSmk/config.yaml
+echo "CLUSTER: $cluster" >> AnnoSmk/config.yaml
 echo "PATH: "$pwd1 >> AnnoSmk/config.yaml
 echo "PREFIX: $prefix" >> AnnoSmk/config.yaml
 echo "REF: $ref" >> AnnoSmk/config.yaml
@@ -142,6 +143,7 @@ configfile: "'''$pwd1'''/config/parameter.yaml"
 import os
 
 PATH=config["PATH"]
+CLUSTER=config["CLUSTER"]
 PREFIX=config["PREFIX"]
 REF=config["REF"]
 PEP=config["PEP"]
@@ -163,8 +165,10 @@ if config["total_est_gff"]:
     include:"'''$pwd1'''/rules/rule.evidence.all.smk"
 if config["total_pep_gff"]:
     include:"'''$pwd1'''/rules/rule.pep.all.smk"
-
-include:"'''$pwd1'''/rules/rule.makerfor2.all.smk"
+if config["CLUSTER"] == "bsub":
+    include:"'''$pwd1'''/rules/rule.makerfor2.bsub.smk"
+else:
+    include:"'''$pwd1'''/rules/rule.makerfor2.all.smk"
 
 wildcard_constraints:
     PREFIX=PREFIX
@@ -192,7 +196,7 @@ elif [ "$cluster" == "sbatch" ];then
     if [[ ! -d 'AnnoSmk/log_'$prefix'_'$time1 ]];then
     mkdir AnnoSmk/log_"$prefix"_"$time1"
     fi
-    nohup snakemake -s AnnoSmk/annotation.py --cluster "sbatch -c {threads} -p "$queue" -o AnnoSmk/log_"$prefix"_"$time1"/output.{rulename}  -e AnnoSmk/log_"$prefix"_"$time1"/error.{rulename}" -j 5 -p --use-singularity --latency-wait 60 --restart-times 5 --rerun-incomplete > AnnoSmk/log_"$prefix"_"$time1".log 2>&1 &
+    nohup snakemake -s AnnoSmk/annotation.py --cluster "sbatch -c {threads} -p "$queue" -o AnnoSmk/log_"$prefix"_"$time1"/output.{rulename}.{jobid}  -e AnnoSmk/log_"$prefix"_"$time1"/error.{rulename}.{jobid}" -j 5 -p --use-singularity --latency-wait 60 --restart-times 5 --rerun-incomplete > AnnoSmk/log_"$prefix"_"$time1".log 2>&1 &
 else
     echo -e '\nERROR: AnnoSmk currently only supports submitting to LSF\n'
     helpdoc

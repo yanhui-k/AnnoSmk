@@ -235,6 +235,7 @@ rule run_maker:
         "AnnoSmk/benchmark/{PREFIX}_run_maker_R{round}_{lane_number}.tsv"
     shell:
         '''
+        bjobs -l $LSB_JOBID 
         /bin/rm -rf {wildcards.lane_number}.maker.output 2>> AnnoSmk/gossypium/R{wildcards.round}/{wildcards.lane_number}.log
         until [[ ! -e {wildcards.lane_number}.maker.output/{wildcards.lane_number}.db ]]
         do
@@ -261,6 +262,7 @@ rule run_maker:
 #                sleep 600
 #                /bin/rm -rf {wildcards.lane_number}.maker.output
 #                wait                                               
+                bkill $LSB_JOBID
                 exit 1 
             else
                 echo "$(date) but unfinish" >> AnnoSmk/{PREFIX}/R{wildcards.round}/{wildcards.lane_number}.log
