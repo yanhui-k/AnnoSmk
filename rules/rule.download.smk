@@ -1,3 +1,6 @@
+localrules:
+    download
+
 rule download:
     output:
         temp("{PREFIX}/{sample}.sra")

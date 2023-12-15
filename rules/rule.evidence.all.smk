@@ -51,20 +51,32 @@ def get_all_rnaseq(wildcards):
     prefix_all=prefix_d_out+prefix_s_out
     all_fastq=expand("AnnoSmk/{PREFIX}/evidence/{sample}.fasta",PREFIX=PREFIX,sample=prefix_all)
     return all_fastq
-     
+
+def get_fastp_mem_mb_d(wildcards, input):
+    inputfile = "%s/%s_1.fastq" % (wildcards.PREFIX,wildcards.sample)
+    fsize = os.path.getsize(inputfile)
+    MBX = fsize/1024/1024*3
+    return(int(MBX))
+
+def get_fastp_mem_mb_s(wildcards, input):
+    inputfile = "%s/%s_s.fastq" % (wildcards.PREFIX,wildcards.sample)
+    fsize = os.path.getsize(inputfile)
+    MBX = fsize/1024/1024*3
+    return(int(MBX))
 
 rule fastp_d:
     input:
         r1="{PREFIX}/{sample}_1.fastq",
-        r2="{PREFIX}/{sample}_2.fastq",
-        check_download="AnnoSmk/download.log"
+        r2="{PREFIX}/{sample}_2.fastq"
     output:
         r1="AnnoSmk/{PREFIX}/evidence/{sample}_1.clean.fq",
         r2="AnnoSmk/{PREFIX}/evidence/{sample}_2.clean.fq"
+    resources:
+        mem_mb=get_fastp_mem_mb_d
     benchmark:
         "AnnoSmk/benchmark/{PREFIX}_fastp_d_{sample}.tsv"
     shell:
-        "fastp -i {input.r1} -I {input.r2} -o {output.r1} -O {output.r2}"
+        "fastp --thread 1 -i {input.r1} -I {input.r2} -o {output.r1} -O {output.r2}"
 
 rule hisat2_d:
     input:
@@ -83,14 +95,15 @@ rule hisat2_d:
 
 rule fastp_s:
     input:
-        r1="{PREFIX}/{sample}_s.fastq",
-        check_download="AnnoSmk/download.log"
+        r1="{PREFIX}/{sample}_s.fastq"
     output:
         r1="AnnoSmk/{PREFIX}/evidence/{sample}_s.clean.fq"
+    resources:
+        mem_mb=get_fastp_mem_mb_s
     benchmark:
         "AnnoSmk/benchmark/{PREFIX}_fastp_s_{sample}.tsv"
     shell:
-        "fastp -i {input.r1} -o {output.r1}"
+        "fastp --thread 1 -i {input.r1} -o {output.r1}"
 
 rule hisat2_s:
     input:
@@ -116,6 +129,8 @@ rule trinity_d:
     params:
         dir="AnnoSmk/{PREFIX}/evidence/{sample}_d.clean.fq_trinity"
     threads: THREADS
+    resources:
+        mem_mb=20480
     benchmark:
         "AnnoSmk/benchmark/{PREFIX}_trinity_d_{sample}.tsv"
     shell:
@@ -137,6 +152,8 @@ rule trinity_s:
     params:
         dir="AnnoSmk/{PREFIX}/evidence/{sample}_d.clean.fq_trinity"
     threads: THREADS
+    resources:
+        mem_mb=20480
     benchmark:
         "AnnoSmk/benchmark/{PREFIX}_trinity_d_{sample}.tsv"
     shell:
@@ -311,6 +328,12 @@ rule format_gt_flnc_gff_to_maker_gff:
     shell:
         "maker.py format_gt_gff_to_maker_gff {input}"
 
+def get_rawgff_mem_mb(wildcards, input):
+    inputfile = "AnnoSmk/%s/evidence/rnaseq.fasta.rawgff" % wildcards
+    fsize = os.path.getsize(inputfile)
+    MBX = fsize/1024/1024*4
+    return(int(MBX))
+
 rule format_gt_rnaseq_gff_to_maker_gff:
     input:
         "AnnoSmk/{PREFIX}/evidence/rnaseq.fasta.rawgff"
@@ -318,6 +341,8 @@ rule format_gt_rnaseq_gff_to_maker_gff:
         "AnnoSmk/{PREFIX}/evidence/rnaseq_maker.gff"
     benchmark:
         "AnnoSmk/benchmark/{PREFIX}_format_gt_rnaseq_gff_to_maker_gff.tsv"
+    resources:
+        mem_mb=get_rawgff_mem_mb
     shell:
         '''
         maker.py format_gt_gff_to_maker_gff {input}
